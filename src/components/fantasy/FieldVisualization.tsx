@@ -30,23 +30,23 @@ export function FieldVisualization({
   };
 
   return (
-    <div className={cn('relative w-full max-w-3xl mx-auto', className)}>
-      {/* Field background - rotated 180 degrees */}
-      <div className="absolute inset-0 rounded-2xl overflow-hidden">
-        <Image
-          src="/field.jpeg"
-          alt="Soccer field"
-          fill
-          className="object-cover rotate-180 opacity-40"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-background/60" />
-      </div>
+    <div className={cn('flex gap-4 w-full max-w-4xl mx-auto', className)}>
+      {/* Field with background */}
+      <div className="relative flex-1 rounded-2xl overflow-hidden">
+        {/* Field background - rotated 180 degrees */}
+        <div className="absolute inset-0">
+          <Image
+            src="/field.jpeg"
+            alt="Soccer field"
+            fill
+            className="object-cover rotate-180"
+          />
+          <div className="absolute inset-0 bg-background/30" />
+        </div>
 
-      {/* Content */}
-      <div className="relative flex gap-4 p-6">
-        {/* Main field area */}
-        <div className="flex-1 flex flex-col items-center justify-between py-8 min-h-[400px]">
-          {/* Striker - at top */}
+        {/* Active players on field */}
+        <div className="relative flex flex-col items-center justify-between py-10 px-6 min-h-[450px]">
+          {/* Striker - at top (attacking end) */}
           <div className="w-32">
             <PlayerSlot
               role="striker"
@@ -66,7 +66,7 @@ export function FieldVisualization({
             />
           </div>
 
-          {/* Goalkeeper - at bottom */}
+          {/* Goalkeeper - at bottom (defensive end) */}
           <div className="w-32">
             <PlayerSlot
               role="goalkeeper"
@@ -76,12 +76,14 @@ export function FieldVisualization({
             />
           </div>
         </div>
+      </div>
 
-        {/* Bench area */}
-        <div className="w-32 flex flex-col justify-center gap-4 bg-card/50 rounded-xl p-3 backdrop-blur-sm border border-border">
-          <div className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Bench
-          </div>
+      {/* Bench area - outside the field */}
+      <div className="w-36 flex flex-col gap-3 bg-card rounded-xl p-4 border border-border">
+        <div className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wide pb-2 border-b border-border">
+          Bench
+        </div>
+        <div className="flex flex-col gap-3 flex-1 justify-center">
           <PlayerSlot
             subOrder={1}
             player={getSubstitute(1)}
