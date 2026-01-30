@@ -14,14 +14,19 @@ const mockClient = {
     select: () => ({
       eq: () => ({
         single: async () => ({ data: null, error: null }),
+        maybeSingle: async () => ({ data: null, error: null }),
         order: () => ({
           limit: () => ({
             single: async () => ({ data: null, error: null }),
+            maybeSingle: async () => ({ data: null, error: null }),
           }),
         }),
       }),
       order: () => ({
         order: () => ({ data: [], error: null }),
+        limit: () => ({
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
       }),
     }),
     insert: async () => ({ data: null, error: null }),
@@ -34,10 +39,8 @@ const mockClient = {
   }),
 } as unknown as SupabaseClient;
 
-let supabaseInstance: SupabaseClient | null = null;
-
 export function createClient(): SupabaseClient {
-  // Check for env vars each time (don't cache if env vars were missing)
+  // Check for env vars each time
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -46,11 +49,6 @@ export function createClient(): SupabaseClient {
     return mockClient;
   }
 
-  // Return cached instance if available
-  if (supabaseInstance) {
-    return supabaseInstance;
-  }
-
-  supabaseInstance = createBrowserClient(supabaseUrl, supabaseKey);
-  return supabaseInstance;
+  // Create a fresh client each time to avoid initialization deadlock issues
+  return createBrowserClient(supabaseUrl, supabaseKey);
 }

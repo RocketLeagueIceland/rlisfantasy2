@@ -40,7 +40,6 @@ export default function MyTeamPage() {
     slotType: 'active',
   });
   const [transferModalOpen, setTransferModalOpen] = useState(false);
-  const supabase = createClient();
 
   // Calculate current budget
   const calculateBudget = () => {
@@ -52,69 +51,65 @@ export default function MyTeamPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const supabase = createClient();
+
+    // Use onAuthStateChange to detect auth state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[MyTeam] Auth state:', event, session?.user?.id);
+
+        if (event === 'SIGNED_OUT') {
+          router.push('/login?redirect=/my-team');
+          return;
+        }
+
+        if ((event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && !session?.user) {
+          console.log('[MyTeam] No session, redirecting to login');
+          router.push('/login?redirect=/my-team');
+          return;
+        }
+
+        if (session?.user) {
+          setUser({ id: session.user.id });
+          await fetchData();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchData = async () => {
     try {
-      // Check auth
-      console.log('[MyTeam] Checking auth...');
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      console.log('[MyTeam] Auth result:', authUser?.id, 'Error:', authError?.message);
+      console.log('[MyTeam] Fetching data via API...');
 
-      if (!authUser) {
-        router.push('/login?redirect=/my-team');
-        return;
-      }
-      setUser({ id: authUser.id });
+      // Fetch all data in parallel via API routes
+      const [playersRes, weekRes, teamRes] = await Promise.all([
+        fetch('/api/players'),
+        fetch('/api/weeks/current'),
+        fetch('/api/fantasy-teams'),
+      ]);
 
-      // Fetch all players
-      console.log('[MyTeam] Fetching players...');
-      const { data: playersData, error: playersError } = await supabase
-        .from('rl_players')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      console.log('[MyTeam] Players:', playersData?.length, 'Error:', playersError?.message);
-      setAllPlayers(playersData || []);
+      const playersData = await playersRes.json();
+      const weekData = await weekRes.json();
+      const teamData = await teamRes.json();
 
-      // Fetch current week (use maybeSingle to handle no weeks)
-      console.log('[MyTeam] Fetching current week...');
-      const { data: weekData, error: weekError } = await supabase
-        .from('weeks')
-        .select('*')
-        .order('week_number', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      console.log('[MyTeam] Week:', weekData, 'Error:', weekError?.message);
-      setCurrentWeek(weekData);
+      console.log('[MyTeam] Players:', playersData.players?.length);
+      console.log('[MyTeam] Week:', weekData.week);
+      console.log('[MyTeam] Team:', teamData.team);
 
-      // Fetch user's team (use maybeSingle to handle no team)
-      console.log('[MyTeam] Fetching team...');
-      const { data: teamData, error: teamError } = await supabase
-        .from('fantasy_teams')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .maybeSingle();
-      console.log('[MyTeam] Team:', teamData, 'Error:', teamError?.message);
+      setAllPlayers(playersData.players || []);
+      setCurrentWeek(weekData.week);
 
-      if (teamData) {
-        setTeam(teamData);
-        setTeamName(teamData.name);
-
-        // Fetch team players with rl_player data
-        console.log('[MyTeam] Fetching team players...');
-        const { data: teamPlayersData, error: teamPlayersError } = await supabase
-          .from('fantasy_team_players')
-          .select('*, rl_player:rl_players(*)')
-          .eq('fantasy_team_id', teamData.id);
-        console.log('[MyTeam] Team players:', teamPlayersData?.length, 'Error:', teamPlayersError?.message);
-        setTeamPlayers(teamPlayersData || []);
+      if (teamData.team) {
+        setTeam(teamData.team);
+        setTeamName(teamData.team.name);
+        setTeamPlayers(teamData.teamPlayers || []);
       }
 
       setLoading(false);
     } catch (e) {
-      console.error('[MyTeam] Unexpected error:', e);
+      console.error('[MyTeam] Error fetching data:', e);
       setLoading(false);
     }
   };
@@ -174,43 +169,43 @@ export default function MyTeamPage() {
       const budget = calculateBudget();
 
       if (team) {
-        // Update existing team name
-        await supabase
-          .from('fantasy_teams')
-          .update({ name: teamName })
-          .eq('id', team.id);
+        // Update existing team name via API
+        const response = await fetch('/api/fantasy-teams', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teamId: team.id, name: teamName }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to update team');
+        }
       } else {
-        // Create new team
-        const { data: newTeam, error: teamError } = await supabase
-          .from('fantasy_teams')
-          .insert({
-            user_id: user.id,
+        // Create new team via API
+        const response = await fetch('/api/fantasy-teams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             name: teamName,
             budget_remaining: budget,
             created_in_week: currentWeek?.week_number || 1,
-          })
-          .select()
-          .single();
+            players: teamPlayers.map((p) => ({
+              rl_player_id: p.rl_player_id,
+              slot_type: p.slot_type,
+              role: p.role,
+              sub_order: p.sub_order,
+              purchase_price: p.purchase_price,
+            })),
+          }),
+        });
 
-        if (teamError) throw teamError;
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to create team');
+        }
 
-        // Insert team players
-        const playersToInsert = teamPlayers.map((p) => ({
-          fantasy_team_id: newTeam.id,
-          rl_player_id: p.rl_player_id,
-          slot_type: p.slot_type,
-          role: p.role,
-          sub_order: p.sub_order,
-          purchase_price: p.purchase_price,
-        }));
-
-        const { error: playersError } = await supabase
-          .from('fantasy_team_players')
-          .insert(playersToInsert);
-
-        if (playersError) throw playersError;
-
-        setTeam(newTeam);
+        const data = await response.json();
+        setTeam(data.team);
       }
 
       toast.success('Team saved successfully!');
@@ -218,55 +213,45 @@ export default function MyTeamPage() {
       fetchData(); // Refresh data
     } catch (error) {
       console.error(error);
-      toast.error('Failed to save team');
+      toast.error(error instanceof Error ? error.message : 'Failed to save team');
     }
 
     setSaving(false);
   };
 
   const handleTransfer = async (sellPlayer: RLPlayer, buyPlayer: RLPlayer) => {
-    if (!team || !currentWeek) return;
+    if (!team || !currentWeek || !user) return;
 
     // Find the team player entry being sold
     const soldTeamPlayer = teamPlayers.find((p) => p.rl_player_id === sellPlayer.id);
     if (!soldTeamPlayer) return;
 
     try {
-      // Create transfer record
-      const { error: transferError } = await supabase.from('transfers').insert({
-        fantasy_team_id: team.id,
-        week_id: currentWeek.id,
-        sold_player_id: sellPlayer.id,
-        sold_price: soldTeamPlayer.purchase_price,
-        bought_player_id: buyPlayer.id,
-        bought_price: buyPlayer.price,
+      const response = await fetch('/api/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamId: team.id,
+          weekId: currentWeek.id,
+          soldPlayerId: sellPlayer.id,
+          soldPrice: soldTeamPlayer.purchase_price,
+          boughtPlayerId: buyPlayer.id,
+          boughtPrice: buyPlayer.price,
+          teamPlayerId: soldTeamPlayer.id,
+          currentBudget: team.budget_remaining,
+        }),
       });
 
-      if (transferError) throw transferError;
-
-      // Update team player
-      const { error: updateError } = await supabase
-        .from('fantasy_team_players')
-        .update({
-          rl_player_id: buyPlayer.id,
-          purchase_price: buyPlayer.price,
-        })
-        .eq('id', soldTeamPlayer.id);
-
-      if (updateError) throw updateError;
-
-      // Update budget
-      const newBudget = team.budget_remaining + soldTeamPlayer.purchase_price - buyPlayer.price;
-      await supabase
-        .from('fantasy_teams')
-        .update({ budget_remaining: newBudget })
-        .eq('id', team.id);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to complete transfer');
+      }
 
       toast.success(`Transferred ${sellPlayer.name} for ${buyPlayer.name}`);
       fetchData();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to complete transfer');
+      toast.error(error instanceof Error ? error.message : 'Failed to complete transfer');
     }
   };
 

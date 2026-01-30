@@ -33,57 +33,62 @@ export function Header() {
   useEffect(() => {
     const supabase = createClient();
 
-    const getUser = async () => {
+    // Fetch user data from API (server-side, avoids client Supabase issues)
+    const fetchUserFromAPI = async () => {
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-        console.log('[Header] Auth user:', authUser?.id, 'Error:', authError?.message);
-
-        if (authUser) {
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .maybeSingle();
-          console.log('[Header] User data:', data, 'Error:', error?.message);
-          if (data) {
-            setUser(data as UserType);
-          }
+        const response = await fetch('/api/user/me');
+        const data = await response.json();
+        console.log('[Header] API user data:', data);
+        if (data.user) {
+          setUser(data.user as UserType);
         }
       } catch (e) {
-        console.error('[Header] Error fetching user:', e);
+        console.log('[Header] API fetch failed:', e);
       }
       setLoading(false);
     };
 
-    getUser();
-
+    // Use onAuthStateChange just to detect auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[Header] Auth state changed:', event, session?.user?.id);
         if (session?.user) {
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          console.log('[Header] onAuthStateChange user data:', data, 'Error:', error?.message);
-          if (data) {
-            setUser(data as UserType);
-          }
+          // Fetch full user data from API
+          await fetchUserFromAPI();
         } else {
           setUser(null);
+          setLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Set a timeout to stop loading if no auth event fires
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
-  const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    // Clear user state immediately for instant UI feedback
     setUser(null);
-    window.location.href = '/';
+
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          localStorage.removeItem(key);
+        }
+      }
+    }
+
+    // Use server-side signout route (clears cookies)
+    window.location.href = '/auth/signout';
   };
 
   return (
