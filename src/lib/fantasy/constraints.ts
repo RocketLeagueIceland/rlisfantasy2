@@ -136,3 +136,46 @@ function formatTeamName(team: RLTeam): string {
   };
   return names[team] || team;
 }
+
+/**
+ * Check if swapping two players would violate team constraints
+ * @param teamPlayers Current players on the fantasy team
+ * @param player1Id First player ID (being dragged)
+ * @param player2Id Second player ID (drop target)
+ */
+export function canSwapPlayers(
+  teamPlayers: TeamPlayer[],
+  player1Id: string,
+  player2Id: string
+): CanAddPlayerResult {
+  const player1 = teamPlayers.find(
+    (tp) => tp.rl_player_id === player1Id || tp.rl_player?.id === player1Id
+  );
+  const player2 = teamPlayers.find(
+    (tp) => tp.rl_player_id === player2Id || tp.rl_player?.id === player2Id
+  );
+
+  if (!player1 || !player2) {
+    return { valid: false, reason: 'Players not found' };
+  }
+
+  // Same slot type swaps are always valid (active↔active or sub↔sub)
+  if (player1.slot_type === player2.slot_type) {
+    return { valid: true };
+  }
+
+  // Active ↔ Substitute swap - need to validate constraints
+  // Simulate the swap: player1 gets player2's slot_type and vice versa
+  const simulatedTeam = teamPlayers.map((tp) => {
+    const id = tp.rl_player_id || tp.rl_player?.id;
+    if (id === player1Id) {
+      return { ...tp, slot_type: player2.slot_type };
+    }
+    if (id === player2Id) {
+      return { ...tp, slot_type: player1.slot_type };
+    }
+    return tp;
+  });
+
+  return validateTeamConstraints(simulatedTeam);
+}

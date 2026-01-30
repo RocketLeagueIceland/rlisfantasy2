@@ -22,6 +22,7 @@ import {
   PlayerPicker,
   TransferModal,
 } from '@/components/fantasy';
+import { canSwapPlayers } from '@/lib/fantasy/constraints';
 import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Week } from '@/types';
 import { INITIAL_BUDGET } from '@/lib/scoring/constants';
 
@@ -298,6 +299,78 @@ export default function MyTeamPage() {
     }
   };
 
+  const handleSwapPlayers = async (player1Id: string, player2Id: string) => {
+    // Validate the swap first
+    const validation = canSwapPlayers(teamPlayers, player1Id, player2Id);
+    if (!validation.valid) {
+      toast.error(validation.reason || 'Cannot swap these players');
+      return;
+    }
+
+    // Find the two players
+    const player1 = teamPlayers.find(
+      (p) => p.rl_player_id === player1Id || p.rl_player?.id === player1Id
+    );
+    const player2 = teamPlayers.find(
+      (p) => p.rl_player_id === player2Id || p.rl_player?.id === player2Id
+    );
+
+    if (!player1 || !player2) {
+      toast.error('Players not found');
+      return;
+    }
+
+    if (!team) {
+      // Team not saved yet - update local state
+      const updatedPlayers = teamPlayers.map((p) => {
+        const id = p.rl_player_id || p.rl_player?.id;
+        if (id === player1Id) {
+          return {
+            ...p,
+            slot_type: player2.slot_type,
+            role: player2.role,
+            sub_order: player2.sub_order,
+          };
+        }
+        if (id === player2Id) {
+          return {
+            ...p,
+            slot_type: player1.slot_type,
+            role: player1.role,
+            sub_order: player1.sub_order,
+          };
+        }
+        return p;
+      });
+      setTeamPlayers(updatedPlayers);
+      toast.success('Players swapped');
+    } else {
+      // Team is saved - call API endpoint
+      try {
+        const response = await fetch('/api/fantasy-teams/swap-positions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teamId: team.id,
+            player1Id,
+            player2Id,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to swap players');
+        }
+
+        toast.success('Players swapped');
+        fetchData(); // Refresh data
+      } catch (error) {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : 'Failed to swap players');
+      }
+    }
+  };
+
   // Check if can transfer
   const canTransfer = team && currentWeek?.transfer_window_open;
 
@@ -413,7 +486,8 @@ export default function MyTeamPage() {
               players={teamPlayers}
               onSlotClick={!team ? handleSlotClick : undefined}
               onRemovePlayer={!team ? handleRemovePlayer : undefined}
-              disabled={!!team}
+              onSwapPlayers={teamPlayers.length >= 2 ? handleSwapPlayers : undefined}
+              disabled={false}
             />
           </CardContent>
         </Card>

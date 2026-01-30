@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import { Plus, X } from 'lucide-react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import type { RLPlayer, Role } from '@/types';
 import { ROLE_INFO } from '@/lib/scoring/constants';
@@ -14,6 +16,13 @@ interface PlayerSlotProps {
   onClick?: () => void;
   onRemove?: () => void;
   disabled?: boolean;
+  // Drag and drop props
+  slotId?: string;
+  playerId?: string;
+  isDragEnabled?: boolean;
+  isOver?: boolean;
+  isValidDrop?: boolean;
+  isDragging?: boolean;
 }
 
 export function PlayerSlot({
@@ -23,15 +32,69 @@ export function PlayerSlot({
   onClick,
   onRemove,
   disabled = false,
+  slotId,
+  playerId,
+  isDragEnabled = false,
+  isOver = false,
+  isValidDrop = true,
+  isDragging = false,
 }: PlayerSlotProps) {
+  // Set up draggable - only if player exists and drag is enabled
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+    isDragging: isDraggingLocal,
+  } = useDraggable({
+    id: slotId || 'slot',
+    data: { playerId, slotId, role, subOrder },
+    disabled: !isDragEnabled || !player,
+  });
+
+  // Set up droppable - only if drag is enabled
+  const { setNodeRef: setDropRef, isOver: isOverLocal } = useDroppable({
+    id: slotId || 'slot',
+    data: { playerId, slotId, role, subOrder },
+    disabled: !isDragEnabled,
+  });
+
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+        zIndex: isDraggingLocal ? 50 : undefined,
+      }
+    : undefined;
+
+  // Combine refs for both draggable and droppable on the same element
+  const setRef = (node: HTMLElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+
+  // Determine visual states
+  const showIsOver = isOver || isOverLocal;
+  const showIsDragging = isDragging || isDraggingLocal;
+
   if (player) {
     return (
-      <div className="relative group">
+      <div
+        ref={isDragEnabled ? setRef : undefined}
+        style={style}
+        {...(isDragEnabled ? { ...attributes, ...listeners } : {})}
+        className={cn(
+          'relative group',
+          isDragEnabled && 'touch-none',
+          showIsDragging && 'opacity-50',
+          showIsOver && isValidDrop && 'ring-2 ring-green-500 ring-offset-2 rounded-xl',
+          showIsOver && !isValidDrop && 'ring-2 ring-red-500 ring-offset-2 rounded-xl'
+        )}
+      >
         <PlayerCard
           player={player}
           role={role}
           subOrder={subOrder}
-          onClick={!disabled ? onClick : undefined}
+          onClick={!disabled && !isDragEnabled ? onClick : undefined}
         />
         {onRemove && !disabled && (
           <button
@@ -52,11 +115,14 @@ export function PlayerSlot({
   // Empty slot - solid background for visibility
   return (
     <div
+      ref={isDragEnabled ? setRef : undefined}
       className={cn(
         'relative flex flex-col items-center justify-center p-2 md:p-4 rounded-xl border-2 transition-all min-h-[80px] md:min-h-[100px]',
         disabled
           ? 'border-muted bg-card/80 cursor-not-allowed'
-          : 'border-primary/60 bg-card/90 hover:border-primary hover:bg-card cursor-pointer shadow-lg'
+          : 'border-primary/60 bg-card/90 hover:border-primary hover:bg-card cursor-pointer shadow-lg',
+        showIsOver && isValidDrop && 'ring-2 ring-green-500 ring-offset-2 border-green-500',
+        showIsOver && !isValidDrop && 'ring-2 ring-red-500 ring-offset-2 border-red-500'
       )}
       onClick={!disabled ? onClick : undefined}
     >

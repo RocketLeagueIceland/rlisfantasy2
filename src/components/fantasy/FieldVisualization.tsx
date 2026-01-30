@@ -1,25 +1,64 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import type { RLPlayer, Role, FantasyTeamPlayer } from '@/types';
 import { PlayerSlot } from './PlayerSlot';
+import { canSwapPlayers } from '@/lib/fantasy/constraints';
 
 interface FieldVisualizationProps {
   players: FantasyTeamPlayer[];
   onSlotClick?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
   onRemovePlayer?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
+  onSwapPlayers?: (player1Id: string, player2Id: string) => void;
   disabled?: boolean;
   className?: string;
+}
+
+// Generate unique slot IDs
+function getSlotId(slotType: 'active' | 'substitute', role?: Role, subOrder?: number): string {
+  if (slotType === 'active' && role) {
+    return `active-${role}`;
+  }
+  return `substitute-${subOrder}`;
 }
 
 export function FieldVisualization({
   players,
   onSlotClick,
   onRemovePlayer,
+  onSwapPlayers,
   disabled = false,
   className,
 }: FieldVisualizationProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  // Configure sensors for mouse and touch
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8, // Small drag distance before activating
+    },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 200, // Delay before drag starts on touch
+      tolerance: 5,
+    },
+  });
+  const sensors = useSensors(pointerSensor, touchSensor);
+
   // Get players by position
   const getActivePlayer = (role: Role): RLPlayer | null => {
     const p = players.find((p) => p.slot_type === 'active' && p.role === role);
@@ -31,7 +70,93 @@ export function FieldVisualization({
     return p?.rl_player || null;
   };
 
-  return (
+  // Get player ID from slot
+  const getPlayerIdForSlot = (slotId: string): string | undefined => {
+    if (slotId.startsWith('active-')) {
+      const role = slotId.replace('active-', '') as Role;
+      const player = players.find((p) => p.slot_type === 'active' && p.role === role);
+      return player?.rl_player_id || player?.rl_player?.id;
+    } else if (slotId.startsWith('substitute-')) {
+      const subOrder = parseInt(slotId.replace('substitute-', ''), 10);
+      const player = players.find((p) => p.slot_type === 'substitute' && p.sub_order === subOrder);
+      return player?.rl_player_id || player?.rl_player?.id;
+    }
+    return undefined;
+  };
+
+  // Check if a swap would be valid
+  const isValidSwap = useCallback(
+    (sourceId: string, targetId: string): boolean => {
+      const sourcePlayerId = getPlayerIdForSlot(sourceId);
+      const targetPlayerId = getPlayerIdForSlot(targetId);
+
+      if (!sourcePlayerId || !targetPlayerId) {
+        return false; // Can't swap with empty slots
+      }
+
+      const result = canSwapPlayers(players, sourcePlayerId, targetPlayerId);
+      return result.valid;
+    },
+    [players]
+  );
+
+  // Drag event handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const overId = event.over?.id as string | null;
+    setOverId(overId);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setOverId(null);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const sourceId = active.id as string;
+    const targetId = over.id as string;
+    const sourcePlayerId = getPlayerIdForSlot(sourceId);
+    const targetPlayerId = getPlayerIdForSlot(targetId);
+
+    if (!sourcePlayerId || !targetPlayerId) {
+      return; // Can't swap with empty slots
+    }
+
+    // Check if swap is valid
+    if (!isValidSwap(sourceId, targetId)) {
+      return; // Invalid swap - the visual feedback already showed red
+    }
+
+    // Execute the swap
+    onSwapPlayers?.(sourcePlayerId, targetPlayerId);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
+  };
+
+  // Check if a specific slot is being dragged or is a valid drop target
+  const getSlotState = (slotId: string) => {
+    const isDragging = activeId === slotId;
+    const isOver = overId === slotId && activeId !== slotId;
+    const isValidDrop = activeId && overId === slotId ? isValidSwap(activeId, slotId) : true;
+
+    return { isDragging, isOver, isValidDrop };
+  };
+
+  // Determine if drag should be enabled
+  const isDragEnabled = !!onSwapPlayers && players.length >= 2;
+
+  // Render content wrapped in DndContext if drag is enabled
+  const content = (
     <div className={cn('flex flex-col md:flex-row gap-4 w-full max-w-4xl mx-auto overflow-hidden', className)}>
       {/* Field with background */}
       <div className="relative flex-1 rounded-2xl overflow-hidden bg-background aspect-[3/4] md:aspect-[3/4]">
@@ -52,35 +177,74 @@ export function FieldVisualization({
         <div className="relative flex flex-col items-center justify-center gap-8 md:gap-16 py-8 md:py-16 px-4 md:px-6 h-full">
           {/* Striker - at top (attacking end) */}
           <div className="w-28 md:w-32">
-            <PlayerSlot
-              role="striker"
-              player={getActivePlayer('striker')}
-              onClick={() => onSlotClick?.('active', 'striker')}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'striker') : undefined}
-              disabled={disabled}
-            />
+            {(() => {
+              const slotId = getSlotId('active', 'striker');
+              const state = getSlotState(slotId);
+              const player = getActivePlayer('striker');
+              return (
+                <PlayerSlot
+                  role="striker"
+                  player={player}
+                  onClick={() => onSlotClick?.('active', 'striker')}
+                  onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'striker') : undefined}
+                  disabled={disabled}
+                  slotId={slotId}
+                  playerId={player?.id}
+                  isDragEnabled={isDragEnabled}
+                  isDragging={state.isDragging}
+                  isOver={state.isOver}
+                  isValidDrop={state.isValidDrop}
+                />
+              );
+            })()}
           </div>
 
           {/* Midfield - in middle */}
           <div className="w-28 md:w-32">
-            <PlayerSlot
-              role="midfield"
-              player={getActivePlayer('midfield')}
-              onClick={() => onSlotClick?.('active', 'midfield')}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'midfield') : undefined}
-              disabled={disabled}
-            />
+            {(() => {
+              const slotId = getSlotId('active', 'midfield');
+              const state = getSlotState(slotId);
+              const player = getActivePlayer('midfield');
+              return (
+                <PlayerSlot
+                  role="midfield"
+                  player={player}
+                  onClick={() => onSlotClick?.('active', 'midfield')}
+                  onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'midfield') : undefined}
+                  disabled={disabled}
+                  slotId={slotId}
+                  playerId={player?.id}
+                  isDragEnabled={isDragEnabled}
+                  isDragging={state.isDragging}
+                  isOver={state.isOver}
+                  isValidDrop={state.isValidDrop}
+                />
+              );
+            })()}
           </div>
 
           {/* Goalkeeper - at bottom (defensive end) */}
           <div className="w-28 md:w-32">
-            <PlayerSlot
-              role="goalkeeper"
-              player={getActivePlayer('goalkeeper')}
-              onClick={() => onSlotClick?.('active', 'goalkeeper')}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'goalkeeper') : undefined}
-              disabled={disabled}
-            />
+            {(() => {
+              const slotId = getSlotId('active', 'goalkeeper');
+              const state = getSlotState(slotId);
+              const player = getActivePlayer('goalkeeper');
+              return (
+                <PlayerSlot
+                  role="goalkeeper"
+                  player={player}
+                  onClick={() => onSlotClick?.('active', 'goalkeeper')}
+                  onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'goalkeeper') : undefined}
+                  disabled={disabled}
+                  slotId={slotId}
+                  playerId={player?.id}
+                  isDragEnabled={isDragEnabled}
+                  isDragging={state.isDragging}
+                  isOver={state.isOver}
+                  isValidDrop={state.isValidDrop}
+                />
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -91,35 +255,47 @@ export function FieldVisualization({
           Bench
         </div>
         <div className="flex flex-row md:flex-col gap-2 md:gap-3 flex-1 justify-center">
-          <div className="flex-1 md:flex-none min-w-0">
-            <PlayerSlot
-              subOrder={1}
-              player={getSubstitute(1)}
-              onClick={() => onSlotClick?.('substitute', undefined, 1)}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 1) : undefined}
-              disabled={disabled}
-            />
-          </div>
-          <div className="flex-1 md:flex-none min-w-0">
-            <PlayerSlot
-              subOrder={2}
-              player={getSubstitute(2)}
-              onClick={() => onSlotClick?.('substitute', undefined, 2)}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 2) : undefined}
-              disabled={disabled}
-            />
-          </div>
-          <div className="flex-1 md:flex-none min-w-0">
-            <PlayerSlot
-              subOrder={3}
-              player={getSubstitute(3)}
-              onClick={() => onSlotClick?.('substitute', undefined, 3)}
-              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 3) : undefined}
-              disabled={disabled}
-            />
-          </div>
+          {[1, 2, 3].map((order) => {
+            const slotId = getSlotId('substitute', undefined, order);
+            const state = getSlotState(slotId);
+            const player = getSubstitute(order);
+            return (
+              <div key={order} className="flex-1 md:flex-none min-w-0">
+                <PlayerSlot
+                  subOrder={order}
+                  player={player}
+                  onClick={() => onSlotClick?.('substitute', undefined, order)}
+                  onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, order) : undefined}
+                  disabled={disabled}
+                  slotId={slotId}
+                  playerId={player?.id}
+                  isDragEnabled={isDragEnabled}
+                  isDragging={state.isDragging}
+                  isOver={state.isOver}
+                  isValidDrop={state.isValidDrop}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
+
+  // Wrap in DndContext if drag is enabled
+  if (isDragEnabled) {
+    return (
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        {content}
+      </DndContext>
+    );
+  }
+
+  return content;
 }
