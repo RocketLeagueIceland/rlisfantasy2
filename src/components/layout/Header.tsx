@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, User, LogOut, Shield } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, Heart, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,11 +17,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createClient } from '@/lib/supabase/client';
 import type { User as UserType } from '@/types';
 
-const navLinks = [
+const navLinks: { href: string; label: string; icon?: LucideIcon }[] = [
   { href: '/', label: 'Home' },
   { href: '/scoreboard', label: 'Scoreboard' },
   { href: '/rules', label: 'Rules' },
   { href: '/my-team', label: 'My Team' },
+  { href: '/donate', label: 'Donate', icon: Heart },
 ];
 
 export function Header() {
@@ -114,12 +115,13 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
                 pathname === link.href
                   ? 'text-primary'
                   : 'text-muted-foreground'
               }`}
             >
+              {link.icon && <link.icon className="h-4 w-4" />}
               {link.label}
             </Link>
           ))}
@@ -197,12 +199,13 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted flex items-center gap-2 ${
                   pathname === link.href
                     ? 'bg-muted text-primary'
                     : 'text-muted-foreground'
                 }`}
               >
+                {link.icon && <link.icon className="h-4 w-4" />}
                 {link.label}
               </Link>
             ))}
