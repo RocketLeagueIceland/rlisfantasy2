@@ -325,6 +325,17 @@ export default function MyTeamPage() {
       .map((p) => p.rl_player_id);
   };
 
+  // Get the player ID being replaced in current slot (for constraint checks)
+  const getCurrentSlotPlayerId = () => {
+    const existingPlayer = teamPlayers.find((p) => {
+      if (pickerState.slotType === 'active') {
+        return p.slot_type === 'active' && p.role === pickerState.role;
+      }
+      return p.slot_type === 'substitute' && p.sub_order === pickerState.subOrder;
+    });
+    return existingPlayer?.rl_player_id;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -472,6 +483,8 @@ export default function MyTeamPage() {
         slotType={pickerState.slotType}
         role={pickerState.role}
         subOrder={pickerState.subOrder}
+        currentTeamPlayers={teamPlayers}
+        currentSlotPlayerId={getCurrentSlotPlayerId()}
       />
 
       {/* Transfer modal */}

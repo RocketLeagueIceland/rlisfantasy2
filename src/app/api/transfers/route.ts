@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { canAddPlayer } from '@/lib/fantasy/constraints';
+import type { SlotType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,45 @@ export async function POST(request: Request) {
 
     if (!team) {
       return NextResponse.json({ error: 'Team not found or not owned by user' }, { status: 403 });
+    }
+
+    // Fetch current team players for constraint validation
+    const { data: currentTeamPlayers, error: teamPlayersError } = await supabase
+      .from('fantasy_team_players')
+      .select('*, rl_player:rl_players(*)')
+      .eq('fantasy_team_id', teamId);
+
+    if (teamPlayersError) {
+      console.error('Error fetching team players:', teamPlayersError);
+      return NextResponse.json({ error: 'Failed to validate transfer' }, { status: 500 });
+    }
+
+    // Fetch the bought player data
+    const { data: boughtPlayer, error: boughtPlayerError } = await supabase
+      .from('rl_players')
+      .select('*')
+      .eq('id', boughtPlayerId)
+      .single();
+
+    if (boughtPlayerError || !boughtPlayer) {
+      console.error('Error fetching bought player:', boughtPlayerError);
+      return NextResponse.json({ error: 'Player not found' }, { status: 404 });
+    }
+
+    // Get the slot type of the player being sold
+    const soldTeamPlayer = currentTeamPlayers?.find(p => p.rl_player_id === soldPlayerId);
+    const slotType: SlotType = soldTeamPlayer?.slot_type || 'substitute';
+
+    // Validate transfer against team constraints
+    const constraintResult = canAddPlayer(
+      currentTeamPlayers || [],
+      boughtPlayer,
+      slotType,
+      soldPlayerId
+    );
+
+    if (!constraintResult.valid) {
+      return NextResponse.json({ error: constraintResult.reason }, { status: 400 });
     }
 
     // Create transfer record

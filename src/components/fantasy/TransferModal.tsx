@@ -23,6 +23,7 @@ import {
 import { PlayerCard } from './PlayerCard';
 import type { RLPlayer, FantasyTeamPlayer, RLTeam } from '@/types';
 import { RL_TEAMS, RL_TEAM_NAMES } from '@/lib/scoring/constants';
+import { canAddPlayer } from '@/lib/fantasy/constraints';
 
 interface TransferModalProps {
   open: boolean;
@@ -56,6 +57,11 @@ export function TransferModal({
     ? budget + teamPlayers.find((p) => p.rl_player_id === sellPlayer.id)?.purchase_price!
     : budget;
 
+  // Get the slot type of the player being sold (for constraint checks)
+  const sellPlayerSlotType = sellPlayer
+    ? teamPlayers.find((p) => p.rl_player_id === sellPlayer.id)?.slot_type || 'substitute'
+    : 'substitute';
+
   // Available players to buy
   const teamPlayerIds = teamPlayers.map((p) => p.rl_player_id);
   const buyablePlayers = useMemo(() => {
@@ -69,8 +75,14 @@ export function TransferModal({
         p.team.toLowerCase().includes(search.toLowerCase())
       )
       .filter((p) => teamFilter === 'all' || p.team === teamFilter)
+      .filter((p) => {
+        // Check team constraint (max 2 per RL team, max 1 active per RL team)
+        // The sold player's ID is passed so they don't count toward the limit
+        const result = canAddPlayer(teamPlayers, p, sellPlayerSlotType, sellPlayer?.id);
+        return result.valid;
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allPlayers, teamPlayerIds, sellPlayer, budgetAfterSale, search, teamFilter]);
+  }, [allPlayers, teamPlayerIds, sellPlayer, budgetAfterSale, search, teamFilter, teamPlayers, sellPlayerSlotType]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('is-IS').format(price);

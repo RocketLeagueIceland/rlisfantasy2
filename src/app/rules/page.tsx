@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ROLE_INFO, BASE_POINTS, ROLE_MULTIPLIERS, INITIAL_BUDGET, TEAM_SIZE } from '@/lib/scoring/constants';
+import { MAX_PLAYERS_PER_RL_TEAM, MAX_ACTIVE_PER_RL_TEAM } from '@/lib/fantasy/constraints';
 
 export default function RulesPage() {
   const formatBudget = (amount: number) => {
@@ -89,6 +90,47 @@ export default function RulesPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Team Constraints */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Constraints</CardTitle>
+          <CardDescription>
+            Restrictions on player selection from the same RL team
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p>
+            To promote balanced team building and prevent stacking players from dominant teams,
+            the following constraints apply:
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="p-4 rounded-lg bg-muted">
+              <h4 className="font-semibold mb-2">Max {MAX_PLAYERS_PER_RL_TEAM} Players Per RL Team</h4>
+              <p className="text-sm text-muted-foreground">
+                You cannot have more than {MAX_PLAYERS_PER_RL_TEAM} players from the same Rocket League team
+                (e.g., max 2 players from Thor).
+              </p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted">
+              <h4 className="font-semibold mb-2">Max {MAX_ACTIVE_PER_RL_TEAM} Active Per RL Team</h4>
+              <p className="text-sm text-muted-foreground">
+                If you have {MAX_PLAYERS_PER_RL_TEAM} players from the same team, at least one must be a substitute.
+                Only {MAX_ACTIVE_PER_RL_TEAM} can be in an active role.
+              </p>
+            </div>
+          </div>
+          <div className="bg-muted p-4 rounded-lg">
+            <h4 className="font-semibold mb-2">Example:</h4>
+            <ul className="list-disc list-inside text-sm space-y-1">
+              <li><span className="text-green-500">✓</span> 1 player from Dusty as Striker, 1 as Substitute 2</li>
+              <li><span className="text-green-500">✓</span> 1 player from Thor as Goalkeeper</li>
+              <li><span className="text-red-500">✗</span> 2 players from Thor as Striker and Midfield (too many active)</li>
+              <li><span className="text-red-500">✗</span> 3 players from the same team (exceeds maximum)</li>
+            </ul>
           </div>
         </CardContent>
       </Card>

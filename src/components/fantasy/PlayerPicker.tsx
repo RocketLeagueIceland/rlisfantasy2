@@ -20,8 +20,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { PlayerCard } from './PlayerCard';
-import type { RLPlayer, Role, RLTeam } from '@/types';
+import type { RLPlayer, Role, RLTeam, FantasyTeamPlayer } from '@/types';
 import { RL_TEAMS, RL_TEAM_NAMES, ROLE_INFO } from '@/lib/scoring/constants';
+import { canAddPlayer } from '@/lib/fantasy/constraints';
 
 interface PlayerPickerProps {
   open: boolean;
@@ -33,6 +34,8 @@ interface PlayerPickerProps {
   slotType: 'active' | 'substitute';
   role?: Role;
   subOrder?: number;
+  currentTeamPlayers?: FantasyTeamPlayer[];
+  currentSlotPlayerId?: string;
 }
 
 export function PlayerPicker({
@@ -45,6 +48,8 @@ export function PlayerPicker({
   slotType,
   role,
   subOrder,
+  currentTeamPlayers = [],
+  currentSlotPlayerId,
 }: PlayerPickerProps) {
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState<RLTeam | 'all'>('all');
@@ -60,6 +65,11 @@ export function PlayerPicker({
         p.team.toLowerCase().includes(search.toLowerCase())
       )
       .filter((p) => teamFilter === 'all' || p.team === teamFilter)
+      .filter((p) => {
+        // Check team constraint (max 2 per RL team, max 1 active per RL team)
+        const result = canAddPlayer(currentTeamPlayers, p, slotType, currentSlotPlayerId);
+        return result.valid;
+      })
       .sort((a, b) => {
         switch (sortBy) {
           case 'price-asc':
@@ -70,7 +80,7 @@ export function PlayerPicker({
             return a.name.localeCompare(b.name);
         }
       });
-  }, [players, selectedPlayerIds, budget, search, teamFilter, sortBy]);
+  }, [players, selectedPlayerIds, budget, search, teamFilter, sortBy, currentTeamPlayers, slotType, currentSlotPlayerId]);
 
   const formatBudget = (amount: number) => {
     if (amount >= 1_000_000) {

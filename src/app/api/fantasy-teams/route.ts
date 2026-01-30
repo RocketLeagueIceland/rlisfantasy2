@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { validateTeamConstraints } from '@/lib/fantasy/constraints';
+import type { RLPlayer, SlotType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +61,33 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { name, budget_remaining, created_in_week, players } = body;
+
+    // Fetch RL player data for constraint validation
+    const playerIds = players.map((p: { rl_player_id: string }) => p.rl_player_id);
+    const { data: rlPlayers, error: rlPlayersError } = await supabase
+      .from('rl_players')
+      .select('*')
+      .in('id', playerIds);
+
+    if (rlPlayersError) {
+      console.error('Error fetching RL players:', rlPlayersError);
+      return NextResponse.json({ error: 'Failed to validate players' }, { status: 500 });
+    }
+
+    // Build team players with rl_player data for validation
+    const teamPlayersForValidation = players.map((p: {
+      rl_player_id: string;
+      slot_type: SlotType;
+    }) => ({
+      slot_type: p.slot_type,
+      rl_player: rlPlayers?.find((rp: RLPlayer) => rp.id === p.rl_player_id),
+    }));
+
+    // Validate team constraints (max 2 per RL team, max 1 active per RL team)
+    const constraintResult = validateTeamConstraints(teamPlayersForValidation);
+    if (!constraintResult.valid) {
+      return NextResponse.json({ error: constraintResult.reason }, { status: 400 });
+    }
 
     // Create the team
     const { data: newTeam, error: teamError } = await supabase
