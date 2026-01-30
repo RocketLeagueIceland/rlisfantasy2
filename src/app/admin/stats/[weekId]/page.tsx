@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Upload, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Upload, CheckCircle, Download, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,8 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
   const [stats, setStats] = useState<Map<string, StatsEntry>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [unmatchedPlayers, setUnmatchedPlayers] = useState<string[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -180,6 +182,66 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
     setSaving(false);
   };
 
+  const handleFetchFromBallchasing = async () => {
+    if (!week?.ballchasing_group_id) {
+      toast.error('No ballchasing group ID set for this week');
+      return;
+    }
+
+    setFetching(true);
+    setUnmatchedPlayers([]);
+
+    try {
+      const response = await fetch('/api/admin/fetch-ballchasing-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekId,
+          groupId: week.ballchasing_group_id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch stats');
+      }
+
+      // Update stats with fetched data
+      setStats((prev) => {
+        const updated = new Map(prev);
+        for (const stat of data.stats) {
+          const existing = updated.get(stat.playerId);
+          if (existing) {
+            updated.set(stat.playerId, {
+              ...existing,
+              gamesPlayed: stat.gamesPlayed,
+              totalGoals: stat.totalGoals,
+              totalAssists: stat.totalAssists,
+              totalSaves: stat.totalSaves,
+              totalShots: stat.totalShots,
+              totalDemosReceived: stat.totalDemosReceived,
+            });
+          }
+        }
+        return updated;
+      });
+
+      // Store unmatched players for display
+      if (data.unmatchedPlayers && data.unmatchedPlayers.length > 0) {
+        setUnmatchedPlayers(data.unmatchedPlayers);
+        toast.warning(`Fetched stats, but ${data.unmatchedPlayers.length} players couldn't be matched. Add aliases to match them.`);
+      } else {
+        toast.success(`Successfully fetched stats for ${data.matchedCount} players`);
+      }
+    } catch (e) {
+      console.error('Error fetching from ballchasing:', e);
+      toast.error(e instanceof Error ? e.message : 'Failed to fetch stats');
+    }
+
+    setFetching(false);
+  };
+
   const handlePublishScores = async () => {
     if (!week?.stats_fetched) {
       toast.error('Please save stats first');
@@ -222,6 +284,14 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={handleFetchFromBallchasing}
+            disabled={fetching || !week?.ballchasing_group_id}
+            variant="outline"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {fetching ? 'Fetching...' : 'Fetch from Ballchasing'}
+          </Button>
           <Button onClick={handleSaveStats} disabled={saving}>
             <Save className="mr-2 h-4 w-4" />
             {saving ? 'Saving...' : 'Save Stats'}
@@ -237,11 +307,38 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
         </div>
       </div>
 
+      {/* Unmatched players warning */}
+      {unmatchedPlayers.length > 0 && (
+        <Card className="border-yellow-500 bg-yellow-500/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-yellow-500">
+              <AlertTriangle className="h-5 w-5" />
+              Unmatched Players
+            </CardTitle>
+            <CardDescription>
+              These players from ballchasing couldn&apos;t be matched. Add aliases in the Players page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {unmatchedPlayers.map((name) => (
+                <span
+                  key={name}
+                  className="px-2 py-1 bg-yellow-500/20 rounded text-sm"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Player Stats Entry</CardTitle>
           <CardDescription>
-            Enter the total stats for each player from the Bo5 series
+            Enter the total stats for each player from the Bo5 series, or fetch from Ballchasing
           </CardDescription>
         </CardHeader>
         <CardContent>

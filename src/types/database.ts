@@ -19,6 +19,7 @@ export interface RLPlayer {
   team: RLTeam;
   price: number;
   ballchasing_id: string | null;
+  aliases: string[]; // Alternative names used in ballchasing replays
   is_active: boolean;
   created_at: string;
 }

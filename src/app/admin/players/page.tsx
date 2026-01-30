@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,8 +47,10 @@ export default function AdminPlayersPage() {
     team: '' as RLTeam | '',
     price: 1000000,
     ballchasing_id: '',
+    aliases: [] as string[],
     is_active: true,
   });
+  const [newAlias, setNewAlias] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function AdminPlayersPage() {
         team: player.team,
         price: player.price,
         ballchasing_id: player.ballchasing_id || '',
+        aliases: player.aliases || [],
         is_active: player.is_active,
       });
     } else {
@@ -88,10 +91,26 @@ export default function AdminPlayersPage() {
         team: '',
         price: 1000000,
         ballchasing_id: '',
+        aliases: [],
         is_active: true,
       });
     }
+    setNewAlias('');
     setDialogOpen(true);
+  };
+
+  const handleAddAlias = () => {
+    if (newAlias.trim() && !formData.aliases.includes(newAlias.trim())) {
+      setFormData({ ...formData, aliases: [...formData.aliases, newAlias.trim()] });
+      setNewAlias('');
+    }
+  };
+
+  const handleRemoveAlias = (aliasToRemove: string) => {
+    setFormData({
+      ...formData,
+      aliases: formData.aliases.filter((a) => a !== aliasToRemove),
+    });
   };
 
   const handleSave = async () => {
@@ -105,6 +124,7 @@ export default function AdminPlayersPage() {
       team: formData.team as RLTeam,
       price: formData.price,
       ballchasing_id: formData.ballchasing_id || null,
+      aliases: formData.aliases,
       is_active: formData.is_active,
     };
 
@@ -153,11 +173,14 @@ export default function AdminPlayersPage() {
     }
   };
 
-  const filteredPlayers = players.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.team.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredPlayers = players.filter((p) => {
+    const searchLower = search.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(searchLower) ||
+      p.team.toLowerCase().includes(searchLower) ||
+      (p.aliases && p.aliases.some((a) => a.toLowerCase().includes(searchLower)))
+    );
+  });
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('is-IS').format(price);
@@ -203,9 +226,9 @@ export default function AdminPlayersPage() {
                 <TableRow>
                   <TableHead>Team</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Aliases</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Ballchasing ID</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -225,14 +248,24 @@ export default function AdminPlayersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{player.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {player.aliases && player.aliases.length > 0 ? (
+                          player.aliases.map((alias) => (
+                            <Badge key={alias} variant="outline" className="text-xs">
+                              {alias}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{formatPrice(player.price)} kr</TableCell>
                     <TableCell>
                       <Badge variant={player.is_active ? 'default' : 'secondary'}>
                         {player.is_active ? 'Active' : 'Inactive'}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {player.ballchasing_id || '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -256,7 +289,7 @@ export default function AdminPlayersPage() {
                 ))}
                 {filteredPlayers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No players found
                     </TableCell>
                   </TableRow>
@@ -343,6 +376,41 @@ export default function AdminPlayersPage() {
                 }
                 placeholder="Player's ballchasing.com ID"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Aliases (alternative names in replays)</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newAlias}
+                  onChange={(e) => setNewAlias(e.target.value)}
+                  placeholder="Add an alias..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddAlias();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={handleAddAlias}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {formData.aliases.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.aliases.map((alias) => (
+                    <Badge key={alias} variant="secondary" className="flex items-center gap-1">
+                      {alias}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAlias(alias)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <input
