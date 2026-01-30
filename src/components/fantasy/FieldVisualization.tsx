@@ -8,6 +8,7 @@ import { PlayerSlot } from './PlayerSlot';
 interface FieldVisualizationProps {
   players: FantasyTeamPlayer[];
   onSlotClick?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
+  onRemovePlayer?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -15,6 +16,7 @@ interface FieldVisualizationProps {
 export function FieldVisualization({
   players,
   onSlotClick,
+  onRemovePlayer,
   disabled = false,
   className,
 }: FieldVisualizationProps) {
@@ -54,6 +56,7 @@ export function FieldVisualization({
               role="striker"
               player={getActivePlayer('striker')}
               onClick={() => onSlotClick?.('active', 'striker')}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'striker') : undefined}
               disabled={disabled}
             />
           </div>
@@ -64,6 +67,7 @@ export function FieldVisualization({
               role="midfield"
               player={getActivePlayer('midfield')}
               onClick={() => onSlotClick?.('active', 'midfield')}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'midfield') : undefined}
               disabled={disabled}
             />
           </div>
@@ -74,6 +78,7 @@ export function FieldVisualization({
               role="goalkeeper"
               player={getActivePlayer('goalkeeper')}
               onClick={() => onSlotClick?.('active', 'goalkeeper')}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'goalkeeper') : undefined}
               disabled={disabled}
             />
           </div>
@@ -91,6 +96,7 @@ export function FieldVisualization({
               subOrder={1}
               player={getSubstitute(1)}
               onClick={() => onSlotClick?.('substitute', undefined, 1)}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 1) : undefined}
               disabled={disabled}
             />
           </div>
@@ -99,6 +105,7 @@ export function FieldVisualization({
               subOrder={2}
               player={getSubstitute(2)}
               onClick={() => onSlotClick?.('substitute', undefined, 2)}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 2) : undefined}
               disabled={disabled}
             />
           </div>
@@ -107,6 +114,7 @@ export function FieldVisualization({
               subOrder={3}
               player={getSubstitute(3)}
               onClick={() => onSlotClick?.('substitute', undefined, 3)}
+              onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, 3) : undefined}
               disabled={disabled}
             />
           </div>

@@ -169,6 +169,18 @@ export default function MyTeamPage() {
     setPickerState({ ...pickerState, open: false });
   };
 
+  const handleRemovePlayer = (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => {
+    // Only allow removal during team creation
+    if (team) return;
+
+    setTeamPlayers(teamPlayers.filter((p) => {
+      if (slotType === 'active') {
+        return !(p.slot_type === 'active' && p.role === role);
+      }
+      return !(p.slot_type === 'substitute' && p.sub_order === subOrder);
+    }));
+  };
+
   const handleSaveClick = () => {
     if (!user) return;
 
@@ -400,6 +412,7 @@ export default function MyTeamPage() {
             <FieldVisualization
               players={teamPlayers}
               onSlotClick={!team ? handleSlotClick : undefined}
+              onRemovePlayer={!team ? handleRemovePlayer : undefined}
               disabled={!!team}
             />
           </CardContent>

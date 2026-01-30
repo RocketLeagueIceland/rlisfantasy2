@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RLPlayer, Role } from '@/types';
 import { ROLE_INFO } from '@/lib/scoring/constants';
@@ -12,6 +12,7 @@ interface PlayerSlotProps {
   subOrder?: number;
   player?: RLPlayer | null;
   onClick?: () => void;
+  onRemove?: () => void;
   disabled?: boolean;
 }
 
@@ -20,17 +21,30 @@ export function PlayerSlot({
   subOrder,
   player,
   onClick,
+  onRemove,
   disabled = false,
 }: PlayerSlotProps) {
   if (player) {
     return (
-      <div className="relative">
+      <div className="relative group">
         <PlayerCard
           player={player}
           role={role}
           subOrder={subOrder}
           onClick={!disabled ? onClick : undefined}
         />
+        {onRemove && !disabled && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90 shadow-md"
+            title="Remove player"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
     );
   }
