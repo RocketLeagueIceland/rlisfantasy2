@@ -22,7 +22,7 @@ import {
   PlayerPicker,
   TransferModal,
 } from '@/components/fantasy';
-import { canSwapPlayers } from '@/lib/fantasy/constraints';
+import { canSwapPlayers, canMoveToEmptySlot } from '@/lib/fantasy/constraints';
 import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Week } from '@/types';
 import { INITIAL_BUDGET } from '@/lib/scoring/constants';
 
@@ -371,6 +371,97 @@ export default function MyTeamPage() {
     }
   };
 
+  const handleMovePlayer = async (
+    playerId: string,
+    targetSlotType: 'active' | 'substitute',
+    targetRole?: Role,
+    targetSubOrder?: number
+  ) => {
+    // Validate the move first
+    const validation = canMoveToEmptySlot(teamPlayers, playerId, targetSlotType);
+    if (!validation.valid) {
+      toast.error(validation.reason || 'Cannot move player to this position');
+      return;
+    }
+
+    // Find the player
+    const player = teamPlayers.find(
+      (p) => p.rl_player_id === playerId || p.rl_player?.id === playerId
+    );
+
+    if (!player) {
+      toast.error('Player not found');
+      return;
+    }
+
+    // Store old position for potential swap-back
+    const oldSlotType = player.slot_type;
+    const oldRole = player.role;
+    const oldSubOrder = player.sub_order;
+
+    if (!team) {
+      // Team not saved yet - update local state
+      // First, check if there's a player in the target slot that needs to move to the old slot
+      const playerInTargetSlot = teamPlayers.find((p) => {
+        if (targetSlotType === 'active') {
+          return p.slot_type === 'active' && p.role === targetRole;
+        }
+        return p.slot_type === 'substitute' && p.sub_order === targetSubOrder;
+      });
+
+      const updatedPlayers = teamPlayers.map((p) => {
+        const id = p.rl_player_id || p.rl_player?.id;
+        if (id === playerId) {
+          // Move this player to the target slot
+          return {
+            ...p,
+            slot_type: targetSlotType,
+            role: targetRole || null,
+            sub_order: targetSubOrder || null,
+          };
+        }
+        if (playerInTargetSlot && (p.rl_player_id === playerInTargetSlot.rl_player_id || p.rl_player?.id === playerInTargetSlot.rl_player?.id)) {
+          // Move the player that was in the target slot to the old slot
+          return {
+            ...p,
+            slot_type: oldSlotType,
+            role: oldRole,
+            sub_order: oldSubOrder,
+          };
+        }
+        return p;
+      });
+      setTeamPlayers(updatedPlayers);
+      toast.success('Player moved');
+    } else {
+      // Team is saved - call API endpoint
+      try {
+        const response = await fetch('/api/fantasy-teams/move-position', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teamId: team.id,
+            playerId,
+            targetSlotType,
+            targetRole,
+            targetSubOrder,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to move player');
+        }
+
+        toast.success('Player moved');
+        fetchData(); // Refresh data
+      } catch (error) {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : 'Failed to move player');
+      }
+    }
+  };
+
   // Check if can transfer
   const canTransfer = team && currentWeek?.transfer_window_open;
 
@@ -487,6 +578,7 @@ export default function MyTeamPage() {
               onSlotClick={!team ? handleSlotClick : undefined}
               onRemovePlayer={!team ? handleRemovePlayer : undefined}
               onSwapPlayers={teamPlayers.length >= 2 ? handleSwapPlayers : undefined}
+              onMovePlayer={teamPlayers.length >= 1 ? handleMovePlayer : undefined}
               disabled={false}
             />
           </CardContent>

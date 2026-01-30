@@ -179,3 +179,39 @@ export function canSwapPlayers(
 
   return validateTeamConstraints(simulatedTeam);
 }
+
+/**
+ * Check if moving a player to an empty slot would violate team constraints
+ * @param teamPlayers Current players on the fantasy team
+ * @param playerId Player ID being moved
+ * @param targetSlotType The target slot type (active or substitute)
+ */
+export function canMoveToEmptySlot(
+  teamPlayers: TeamPlayer[],
+  playerId: string,
+  targetSlotType: SlotType
+): CanAddPlayerResult {
+  const player = teamPlayers.find(
+    (tp) => tp.rl_player_id === playerId || tp.rl_player?.id === playerId
+  );
+
+  if (!player) {
+    return { valid: false, reason: 'Player not found' };
+  }
+
+  // Same slot type moves are always valid (just changing role or sub_order)
+  if (player.slot_type === targetSlotType) {
+    return { valid: true };
+  }
+
+  // Moving between slot types - simulate and validate
+  const simulatedTeam = teamPlayers.map((tp) => {
+    const id = tp.rl_player_id || tp.rl_player?.id;
+    if (id === playerId) {
+      return { ...tp, slot_type: targetSlotType };
+    }
+    return tp;
+  });
+
+  return validateTeamConstraints(simulatedTeam);
+}

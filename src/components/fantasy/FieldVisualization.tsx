@@ -15,15 +15,26 @@ import {
 import { cn } from '@/lib/utils';
 import type { RLPlayer, Role, FantasyTeamPlayer } from '@/types';
 import { PlayerSlot } from './PlayerSlot';
-import { canSwapPlayers } from '@/lib/fantasy/constraints';
+import { canSwapPlayers, canMoveToEmptySlot } from '@/lib/fantasy/constraints';
 
 interface FieldVisualizationProps {
   players: FantasyTeamPlayer[];
   onSlotClick?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
   onRemovePlayer?: (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => void;
   onSwapPlayers?: (player1Id: string, player2Id: string) => void;
+  onMovePlayer?: (playerId: string, targetSlotType: 'active' | 'substitute', targetRole?: Role, targetSubOrder?: number) => void;
   disabled?: boolean;
   className?: string;
+}
+
+// Parse slot ID to get slot info
+function parseSlotId(slotId: string): { slotType: 'active' | 'substitute'; role?: Role; subOrder?: number } {
+  if (slotId.startsWith('active-')) {
+    const role = slotId.replace('active-', '') as Role;
+    return { slotType: 'active', role };
+  }
+  const subOrder = parseInt(slotId.replace('substitute-', ''), 10);
+  return { slotType: 'substitute', subOrder };
 }
 
 // Generate unique slot IDs
@@ -39,6 +50,7 @@ export function FieldVisualization({
   onSlotClick,
   onRemovePlayer,
   onSwapPlayers,
+  onMovePlayer,
   disabled = false,
   className,
 }: FieldVisualizationProps) {
@@ -84,18 +96,26 @@ export function FieldVisualization({
     return undefined;
   };
 
-  // Check if a swap would be valid
-  const isValidSwap = useCallback(
+  // Check if a swap or move would be valid
+  const isValidDrop = useCallback(
     (sourceId: string, targetId: string): boolean => {
       const sourcePlayerId = getPlayerIdForSlot(sourceId);
       const targetPlayerId = getPlayerIdForSlot(targetId);
 
-      if (!sourcePlayerId || !targetPlayerId) {
-        return false; // Can't swap with empty slots
+      if (!sourcePlayerId) {
+        return false; // Can't drag from empty slot
       }
 
-      const result = canSwapPlayers(players, sourcePlayerId, targetPlayerId);
-      return result.valid;
+      if (targetPlayerId) {
+        // Swapping with another player
+        const result = canSwapPlayers(players, sourcePlayerId, targetPlayerId);
+        return result.valid;
+      } else {
+        // Moving to empty slot
+        const { slotType } = parseSlotId(targetId);
+        const result = canMoveToEmptySlot(players, sourcePlayerId, slotType);
+        return result.valid;
+      }
     },
     [players]
   );
@@ -125,17 +145,23 @@ export function FieldVisualization({
     const sourcePlayerId = getPlayerIdForSlot(sourceId);
     const targetPlayerId = getPlayerIdForSlot(targetId);
 
-    if (!sourcePlayerId || !targetPlayerId) {
-      return; // Can't swap with empty slots
+    if (!sourcePlayerId) {
+      return; // Can't drag from empty slot
     }
 
-    // Check if swap is valid
-    if (!isValidSwap(sourceId, targetId)) {
-      return; // Invalid swap - the visual feedback already showed red
+    // Check if drop is valid
+    if (!isValidDrop(sourceId, targetId)) {
+      return; // Invalid drop - the visual feedback already showed red
     }
 
-    // Execute the swap
-    onSwapPlayers?.(sourcePlayerId, targetPlayerId);
+    if (targetPlayerId) {
+      // Swap with another player
+      onSwapPlayers?.(sourcePlayerId, targetPlayerId);
+    } else {
+      // Move to empty slot
+      const { slotType, role, subOrder } = parseSlotId(targetId);
+      onMovePlayer?.(sourcePlayerId, slotType, role, subOrder);
+    }
   };
 
   const handleDragCancel = () => {
@@ -147,13 +173,13 @@ export function FieldVisualization({
   const getSlotState = (slotId: string) => {
     const isDragging = activeId === slotId;
     const isOver = overId === slotId && activeId !== slotId;
-    const isValidDrop = activeId && overId === slotId ? isValidSwap(activeId, slotId) : true;
+    const canDrop = activeId && overId === slotId ? isValidDrop(activeId, slotId) : true;
 
-    return { isDragging, isOver, isValidDrop };
+    return { isDragging, isOver, isValidDrop: canDrop };
   };
 
   // Determine if drag should be enabled
-  const isDragEnabled = !!onSwapPlayers && players.length >= 2;
+  const isDragEnabled = (!!onSwapPlayers || !!onMovePlayer) && players.length >= 1;
 
   // Render content wrapped in DndContext if drag is enabled
   const content = (
