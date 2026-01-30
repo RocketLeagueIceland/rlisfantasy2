@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      {user.fantasy_teams.length > 0 ? (
+                      {user.fantasy_teams && user.fantasy_teams.length > 0 ? (
                         <span>{user.fantasy_teams[0].name}</span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
