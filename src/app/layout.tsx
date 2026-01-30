@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description: "Fantasy league for the Icelandic Rocket League league (RLIS)",
   icons: {
     icon: "/rlis_logo.png",
+    apple: "/rlis_logo.png",
   },
 };
 
