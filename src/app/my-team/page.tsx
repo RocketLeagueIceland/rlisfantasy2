@@ -2,11 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight, Save, Edit2 } from 'lucide-react';
+import { ArrowLeftRight, Save, Edit2, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   FieldVisualization,
@@ -40,6 +48,7 @@ export default function MyTeamPage() {
     slotType: 'active',
   });
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
 
   // Calculate current budget
   const calculateBudget = () => {
@@ -160,7 +169,7 @@ export default function MyTeamPage() {
     setPickerState({ ...pickerState, open: false });
   };
 
-  const handleSaveTeam = async () => {
+  const handleSaveClick = () => {
     if (!user) return;
 
     if (teamPlayers.length !== 6) {
@@ -173,6 +182,18 @@ export default function MyTeamPage() {
       return;
     }
 
+    // Show confirmation dialog for new teams
+    if (!team) {
+      setConfirmSaveOpen(true);
+      return;
+    }
+
+    // For existing teams (editing name), save directly
+    handleSaveTeam();
+  };
+
+  const handleSaveTeam = async () => {
+    setConfirmSaveOpen(false);
     setSaving(true);
 
     try {
@@ -301,7 +322,7 @@ export default function MyTeamPage() {
             </Button>
           )}
           {(!team || isEditingName) && (
-            <Button onClick={handleSaveTeam} disabled={saving || !isTeamComplete}>
+            <Button onClick={handleSaveClick} disabled={saving || !isTeamComplete}>
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Team'}
             </Button>
@@ -440,6 +461,38 @@ export default function MyTeamPage() {
           budget={team.budget_remaining}
         />
       )}
+
+      {/* Confirmation dialog for first-time save */}
+      <Dialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Confirm Team Creation
+            </DialogTitle>
+            <DialogDescription className="space-y-3 pt-2">
+              <p>
+                <strong>Are you sure you want to lock in this team?</strong>
+              </p>
+              <p>
+                Once you save your team, you <strong>cannot recreate it</strong> or make bulk changes.
+                You will only be able to make <strong>1 transfer per week</strong> during the transfer window.
+              </p>
+              <p className="text-yellow-500">
+                Make sure you are happy with your player selections and their positions before confirming!
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmSaveOpen(false)}>
+              Go Back & Review
+            </Button>
+            <Button onClick={handleSaveTeam} disabled={saving}>
+              {saving ? 'Saving...' : 'Yes, Lock In My Team'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
