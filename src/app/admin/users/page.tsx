@@ -58,10 +58,11 @@ export default function AdminUsersPage() {
       toast.error('Failed to update user');
       console.error(error);
     } else {
+      const displayName = user.username || user.email || 'user';
       toast.success(
         user.is_admin
-          ? `Removed admin from ${user.username}`
-          : `Made ${user.username} an admin`
+          ? `Removed admin from ${displayName}`
+          : `Made ${displayName} an admin`
       );
       fetchUsers();
     }
@@ -69,8 +70,8 @@ export default function AdminUsersPage() {
 
   const filteredUsers = users.filter(
     (u) =>
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      (u.username || '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -121,10 +122,10 @@ export default function AdminUsersPage() {
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={user.avatar_url || ''} />
                           <AvatarFallback>
-                            {user.username.charAt(0).toUpperCase()}
+                            {(user.username || user.email || '?').charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{user.username}</span>
+                        <span className="font-medium">{user.username || user.email || 'Unknown'}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
