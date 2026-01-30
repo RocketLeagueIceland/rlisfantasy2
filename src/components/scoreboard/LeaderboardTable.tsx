@@ -77,7 +77,7 @@ export function LeaderboardTable({
             </TableCell>
             <TableCell>
               <Link
-                href={`/user/${entry.username}`}
+                href={`/user/${encodeURIComponent(entry.username)}`}
                 className="flex items-center gap-3 hover:underline"
               >
                 <Avatar className="h-8 w-8">
