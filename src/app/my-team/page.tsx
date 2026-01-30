@@ -146,7 +146,17 @@ export default function MyTeamPage() {
       rl_player: player,
     };
 
-    setTeamPlayers([...teamPlayers, newTeamPlayer]);
+    // Remove any existing player in the same slot before adding the new one
+    const filteredPlayers = teamPlayers.filter((p) => {
+      if (pickerState.slotType === 'active') {
+        // Remove player with same role
+        return !(p.slot_type === 'active' && p.role === pickerState.role);
+      }
+      // Remove player with same sub_order
+      return !(p.slot_type === 'substitute' && p.sub_order === pickerState.subOrder);
+    });
+
+    setTeamPlayers([...filteredPlayers, newTeamPlayer]);
     setPickerState({ ...pickerState, open: false });
   };
 
