@@ -1,5 +1,9 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -12,7 +16,23 @@ import { Badge } from '@/components/ui/badge';
 import { ROLE_INFO, BASE_POINTS, ROLE_MULTIPLIERS, INITIAL_BUDGET, TEAM_SIZE } from '@/lib/scoring/constants';
 import { MAX_PLAYERS_PER_RL_TEAM, MAX_ACTIVE_PER_RL_TEAM } from '@/lib/fantasy/constraints';
 
-export default function RulesPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function RulesPage() {
+  const supabase = await createClient();
+
+  // Check if user is logged in and has a team
+  const { data: { user } } = await supabase.auth.getUser();
+  let hasTeam = false;
+
+  if (user) {
+    const { data: team } = await supabase
+      .from('fantasy_teams')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    hasTeam = !!team;
+  }
   const formatBudget = (amount: number) => {
     if (amount >= 1_000_000) {
       const millions = amount / 1_000_000;
@@ -310,6 +330,28 @@ export default function RulesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Call to Action */}
+      {!hasTeam && (
+        <Card className="border-primary">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <h2 className="text-2xl font-bold">Ready to Play?</h2>
+              <p className="text-muted-foreground">
+                {user
+                  ? "You haven't created a team yet. Start building your dream lineup now!"
+                  : 'Sign in to create your fantasy team and compete on the scoreboard!'}
+              </p>
+              <Button asChild size="lg">
+                <Link href={user ? '/my-team' : '/login?redirect=/my-team'}>
+                  {user ? 'Create Your Team' : 'Sign In to Get Started'}
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
