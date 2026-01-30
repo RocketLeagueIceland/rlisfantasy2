@@ -56,51 +56,67 @@ export default function MyTeamPage() {
   }, []);
 
   const fetchData = async () => {
-    // Check auth
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
-      router.push('/login?redirect=/my-team');
-      return;
+    try {
+      // Check auth
+      console.log('[MyTeam] Checking auth...');
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      console.log('[MyTeam] Auth result:', authUser?.id, 'Error:', authError?.message);
+
+      if (!authUser) {
+        router.push('/login?redirect=/my-team');
+        return;
+      }
+      setUser({ id: authUser.id });
+
+      // Fetch all players
+      console.log('[MyTeam] Fetching players...');
+      const { data: playersData, error: playersError } = await supabase
+        .from('rl_players')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      console.log('[MyTeam] Players:', playersData?.length, 'Error:', playersError?.message);
+      setAllPlayers(playersData || []);
+
+      // Fetch current week (use maybeSingle to handle no weeks)
+      console.log('[MyTeam] Fetching current week...');
+      const { data: weekData, error: weekError } = await supabase
+        .from('weeks')
+        .select('*')
+        .order('week_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      console.log('[MyTeam] Week:', weekData, 'Error:', weekError?.message);
+      setCurrentWeek(weekData);
+
+      // Fetch user's team (use maybeSingle to handle no team)
+      console.log('[MyTeam] Fetching team...');
+      const { data: teamData, error: teamError } = await supabase
+        .from('fantasy_teams')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      console.log('[MyTeam] Team:', teamData, 'Error:', teamError?.message);
+
+      if (teamData) {
+        setTeam(teamData);
+        setTeamName(teamData.name);
+
+        // Fetch team players with rl_player data
+        console.log('[MyTeam] Fetching team players...');
+        const { data: teamPlayersData, error: teamPlayersError } = await supabase
+          .from('fantasy_team_players')
+          .select('*, rl_player:rl_players(*)')
+          .eq('fantasy_team_id', teamData.id);
+        console.log('[MyTeam] Team players:', teamPlayersData?.length, 'Error:', teamPlayersError?.message);
+        setTeamPlayers(teamPlayersData || []);
+      }
+
+      setLoading(false);
+    } catch (e) {
+      console.error('[MyTeam] Unexpected error:', e);
+      setLoading(false);
     }
-    setUser({ id: authUser.id });
-
-    // Fetch all players
-    const { data: playersData } = await supabase
-      .from('rl_players')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-    setAllPlayers(playersData || []);
-
-    // Fetch current week
-    const { data: weekData } = await supabase
-      .from('weeks')
-      .select('*')
-      .order('week_number', { ascending: false })
-      .limit(1)
-      .single();
-    setCurrentWeek(weekData);
-
-    // Fetch user's team
-    const { data: teamData } = await supabase
-      .from('fantasy_teams')
-      .select('*')
-      .eq('user_id', authUser.id)
-      .single();
-
-    if (teamData) {
-      setTeam(teamData);
-      setTeamName(teamData.name);
-
-      // Fetch team players with rl_player data
-      const { data: teamPlayersData } = await supabase
-        .from('fantasy_team_players')
-        .select('*, rl_player:rl_players(*)')
-        .eq('fantasy_team_id', teamData.id);
-      setTeamPlayers(teamPlayersData || []);
-    }
-
-    setLoading(false);
   };
 
   const handleSlotClick = (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => {

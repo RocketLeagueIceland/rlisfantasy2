@@ -29,31 +29,28 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supabaseReady, setSupabaseReady] = useState(false);
 
   useEffect(() => {
-    // Check if Supabase env vars are available
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setLoading(false);
-      return;
-    }
-
-    setSupabaseReady(true);
     const supabase = createClient();
 
     const getUser = async () => {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        console.log('[Header] Auth user:', authUser?.id, 'Error:', authError?.message);
+
         if (authUser) {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', authUser.id)
-            .single();
-          setUser(data);
+            .maybeSingle();
+          console.log('[Header] User data:', data, 'Error:', error?.message);
+          if (data) {
+            setUser(data as UserType);
+          }
         }
       } catch (e) {
-        console.error('Error fetching user:', e);
+        console.error('[Header] Error fetching user:', e);
       }
       setLoading(false);
     };
@@ -61,15 +58,18 @@ export function Header() {
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (_event: any, session: any) => {
+      async (event, session) => {
+        console.log('[Header] Auth state changed:', event, session?.user?.id);
         if (session?.user) {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
-            .single();
-          setUser(data);
+            .maybeSingle();
+          console.log('[Header] onAuthStateChange user data:', data, 'Error:', error?.message);
+          if (data) {
+            setUser(data as UserType);
+          }
         } else {
           setUser(null);
         }
@@ -77,12 +77,12 @@ export function Header() {
     );
 
     return () => subscription.unsubscribe();
-  }, [supabaseReady]);
+  }, []);
 
   const handleSignOut = async () => {
-    if (!supabaseReady) return;
     const supabase = createClient();
     await supabase.auth.signOut();
+    setUser(null);
     window.location.href = '/';
   };
 
