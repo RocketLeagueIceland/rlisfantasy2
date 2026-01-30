@@ -81,32 +81,35 @@ export function FieldVisualization({
       </div>
 
       {/* Bench area - outside the field */}
-      <div className="flex flex-row md:flex-col md:w-36 gap-3 bg-card rounded-xl p-4 border border-border">
-        <div className="hidden md:block text-center text-sm font-semibold text-muted-foreground uppercase tracking-wide pb-2 border-b border-border">
+      <div className="order-first md:order-last flex flex-col md:w-36 gap-3 bg-card rounded-xl p-4 border border-border">
+        <div className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wide pb-2 border-b border-border">
           Bench
         </div>
-        <div className="md:hidden text-sm font-semibold text-muted-foreground uppercase tracking-wide pr-3 border-r border-border flex items-center">
-          Bench
-        </div>
-        <div className="flex flex-row md:flex-col gap-3 flex-1 justify-center">
-          <PlayerSlot
-            subOrder={1}
-            player={getSubstitute(1)}
-            onClick={() => onSlotClick?.('substitute', undefined, 1)}
-            disabled={disabled}
-          />
-          <PlayerSlot
-            subOrder={2}
-            player={getSubstitute(2)}
-            onClick={() => onSlotClick?.('substitute', undefined, 2)}
-            disabled={disabled}
-          />
-          <PlayerSlot
-            subOrder={3}
-            player={getSubstitute(3)}
-            onClick={() => onSlotClick?.('substitute', undefined, 3)}
-            disabled={disabled}
-          />
+        <div className="flex flex-row md:flex-col gap-2 md:gap-3 flex-1 justify-center">
+          <div className="flex-1 md:flex-none">
+            <PlayerSlot
+              subOrder={1}
+              player={getSubstitute(1)}
+              onClick={() => onSlotClick?.('substitute', undefined, 1)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="flex-1 md:flex-none">
+            <PlayerSlot
+              subOrder={2}
+              player={getSubstitute(2)}
+              onClick={() => onSlotClick?.('substitute', undefined, 2)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="flex-1 md:flex-none">
+            <PlayerSlot
+              subOrder={3}
+              player={getSubstitute(3)}
+              onClick={() => onSlotClick?.('substitute', undefined, 3)}
+              disabled={disabled}
+            />
+          </div>
         </div>
       </div>
     </div>
