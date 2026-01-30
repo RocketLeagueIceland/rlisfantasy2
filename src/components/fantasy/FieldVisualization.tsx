@@ -32,20 +32,22 @@ export function FieldVisualization({
   return (
     <div className={cn('flex gap-4 w-full max-w-4xl mx-auto', className)}>
       {/* Field with background */}
-      <div className="relative flex-1 rounded-2xl overflow-hidden bg-background">
+      <div className="relative flex-1 rounded-2xl overflow-hidden bg-background aspect-[3/4]">
         {/* Field background - rotated 90 degrees so goals are top/bottom */}
-        <div className="absolute inset-0">
-          <Image
-            src="/field.jpeg"
-            alt="Soccer field"
-            fill
-            className="object-contain rotate-90"
-          />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative w-[133%] h-[75%] origin-center rotate-90">
+            <Image
+              src="/field.jpeg"
+              alt="Soccer field"
+              fill
+              className="object-contain"
+            />
+          </div>
           <div className="absolute inset-0 bg-background/50" />
         </div>
 
         {/* Active players on field */}
-        <div className="relative flex flex-col items-center justify-between py-10 px-6 min-h-[500px]">
+        <div className="relative flex flex-col items-center justify-between py-8 px-6 h-full">
           {/* Striker - at top (attacking end) */}
           <div className="w-32">
             <PlayerSlot
