@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Calendar, Clock, BarChart3, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Calendar, Clock, BarChart3, CheckCircle, XCircle, Pencil, Link as LinkIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,15 +28,32 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import type { Week } from '@/types';
 
+// Extract group ID from ballchasing URL or return as-is if already an ID
+function extractBallchasingGroupId(input: string): string {
+  if (!input) return '';
+
+  // If it's a URL, extract the group ID
+  // Example: https://ballchasing.com/group/rlis-season-2-week-1-xyz123
+  const urlMatch = input.match(/ballchasing\.com\/group\/([^/?#]+)/);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+
+  // Otherwise return as-is (assume it's already an ID)
+  return input.trim();
+}
+
 export default function AdminWeeksPage() {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingWeek, setEditingWeek] = useState<Week | null>(null);
   const [formData, setFormData] = useState({
     week_number: 1,
     broadcast_starts_at: '',
-    ballchasing_group_id: '',
   });
+  const [ballchasingUrl, setBallchasingUrl] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
@@ -71,7 +88,6 @@ export default function AdminWeeksPage() {
     const weekData = {
       week_number: formData.week_number,
       broadcast_starts_at: formData.broadcast_starts_at || null,
-      ballchasing_group_id: formData.ballchasing_group_id || null,
       transfer_window_open: false,
       stats_fetched: false,
       scores_published: false,
@@ -86,6 +102,33 @@ export default function AdminWeeksPage() {
       toast.success('Week created');
       fetchWeeks();
       setDialogOpen(false);
+    }
+  };
+
+  const handleOpenEditDialog = (week: Week) => {
+    setEditingWeek(week);
+    setBallchasingUrl(week.ballchasing_group_id || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateWeek = async () => {
+    if (!editingWeek) return;
+
+    const groupId = extractBallchasingGroupId(ballchasingUrl);
+
+    const { error } = await supabase
+      .from('weeks')
+      .update({ ballchasing_group_id: groupId || null })
+      .eq('id', editingWeek.id);
+
+    if (error) {
+      toast.error('Failed to update week');
+      console.error(error);
+    } else {
+      toast.success('Week updated');
+      fetchWeeks();
+      setEditDialogOpen(false);
+      setEditingWeek(null);
     }
   };
 
@@ -149,6 +192,7 @@ export default function AdminWeeksPage() {
                 <TableRow>
                   <TableHead>Week</TableHead>
                   <TableHead>Broadcast</TableHead>
+                  <TableHead>Ballchasing</TableHead>
                   <TableHead>Transfer Window</TableHead>
                   <TableHead>Stats</TableHead>
                   <TableHead>Scores</TableHead>
@@ -172,6 +216,31 @@ export default function AdminWeeksPage() {
                           Transfers close: {formatDate(week.transfer_window_closes_at)}
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {week.ballchasing_group_id ? (
+                          <a
+                            href={`https://ballchasing.com/group/${week.ballchasing_group_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            <LinkIcon className="h-3 w-3" />
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Not set</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleOpenEditDialog(week)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -208,7 +277,7 @@ export default function AdminWeeksPage() {
                 ))}
                 {weeks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No weeks created yet
                     </TableCell>
                   </TableRow>
@@ -254,26 +323,49 @@ export default function AdminWeeksPage() {
                 Transfer window will auto-close 1 hour before broadcast
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ballchasing">Ballchasing Group ID (optional)</Label>
-              <Input
-                id="ballchasing"
-                value={formData.ballchasing_group_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, ballchasing_group_id: e.target.value })
-                }
-                placeholder="e.g., abc123xyz"
-              />
-              <p className="text-xs text-muted-foreground">
-                From ballchasing.com group URL
-              </p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleCreateWeek}>Create Week</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Week Dialog (Ballchasing URL) */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Week {editingWeek?.week_number}</DialogTitle>
+            <DialogDescription>
+              Set the ballchasing group for this week
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="ballchasing_url">Ballchasing Group URL or ID</Label>
+              <Input
+                id="ballchasing_url"
+                value={ballchasingUrl}
+                onChange={(e) => setBallchasingUrl(e.target.value)}
+                placeholder="Paste the full ballchasing.com group URL..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Example: https://ballchasing.com/group/rlis-season-2-week-1
+              </p>
+              {ballchasingUrl && (
+                <p className="text-xs text-muted-foreground">
+                  Extracted ID: <code className="bg-muted px-1 rounded">{extractBallchasingGroupId(ballchasingUrl)}</code>
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateWeek}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
