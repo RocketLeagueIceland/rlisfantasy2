@@ -39,7 +39,7 @@ export function PlayerSlot({
   return (
     <div
       className={cn(
-        'relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all min-h-[100px]',
+        'relative flex flex-col items-center justify-center p-2 md:p-4 rounded-xl border-2 transition-all min-h-[80px] md:min-h-[100px]',
         disabled
           ? 'border-muted bg-card/80 cursor-not-allowed'
           : 'border-primary/60 bg-card/90 hover:border-primary hover:bg-card cursor-pointer shadow-lg'
@@ -60,13 +60,13 @@ export function PlayerSlot({
 
       {/* Sub order indicator */}
       {subOrder !== undefined && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+        <div className="absolute -top-2 -right-2 w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
           {subOrder}
         </div>
       )}
 
-      <Plus className="h-6 w-6 text-primary mb-1" />
-      <span className="text-sm font-medium text-foreground">
+      <Plus className="h-5 w-5 md:h-6 md:w-6 text-primary mb-1" />
+      <span className="text-xs md:text-sm font-medium text-foreground text-center">
         {role ? ROLE_INFO[role].name : `Sub ${subOrder}`}
       </span>
     </div>

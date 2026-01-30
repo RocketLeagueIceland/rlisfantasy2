@@ -30,7 +30,7 @@ export function FieldVisualization({
   };
 
   return (
-    <div className={cn('flex flex-col md:flex-row gap-4 w-full max-w-4xl mx-auto', className)}>
+    <div className={cn('flex flex-col md:flex-row gap-4 w-full max-w-4xl mx-auto overflow-hidden', className)}>
       {/* Field with background */}
       <div className="relative flex-1 rounded-2xl overflow-hidden bg-background aspect-[3/4] md:aspect-[3/4]">
         {/* Field background - rotated 90 degrees so goals are top/bottom */}
@@ -80,13 +80,13 @@ export function FieldVisualization({
         </div>
       </div>
 
-      {/* Bench area - outside the field */}
-      <div className="order-first md:order-last flex flex-col md:w-36 gap-3 bg-card rounded-xl p-4 border border-border">
+      {/* Bench area - below field on mobile, right side on desktop */}
+      <div className="flex flex-col md:w-36 gap-2 md:gap-3 bg-card rounded-xl p-3 md:p-4 border border-border">
         <div className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wide pb-2 border-b border-border">
           Bench
         </div>
         <div className="flex flex-row md:flex-col gap-2 md:gap-3 flex-1 justify-center">
-          <div className="flex-1 md:flex-none">
+          <div className="flex-1 md:flex-none min-w-0">
             <PlayerSlot
               subOrder={1}
               player={getSubstitute(1)}
@@ -94,7 +94,7 @@ export function FieldVisualization({
               disabled={disabled}
             />
           </div>
-          <div className="flex-1 md:flex-none">
+          <div className="flex-1 md:flex-none min-w-0">
             <PlayerSlot
               subOrder={2}
               player={getSubstitute(2)}
@@ -102,7 +102,7 @@ export function FieldVisualization({
               disabled={disabled}
             />
           </div>
-          <div className="flex-1 md:flex-none">
+          <div className="flex-1 md:flex-none min-w-0">
             <PlayerSlot
               subOrder={3}
               player={getSubstitute(3)}
