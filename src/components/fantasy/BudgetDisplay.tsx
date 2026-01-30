@@ -11,11 +11,15 @@ interface BudgetDisplayProps {
 
 export function BudgetDisplay({ budget, className }: BudgetDisplayProps) {
   const formatBudget = (amount: number) => {
+    if (amount >= 1_000_000) {
+      const millions = amount / 1_000_000;
+      return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('is-IS').format(amount);
   };
 
   const percentUsed = ((INITIAL_BUDGET - budget) / INITIAL_BUDGET) * 100;
-  const isLow = budget < 1000000;
+  const isLow = budget < 10_000_000;
 
   return (
     <div className={cn('flex items-center gap-3 p-4 rounded-lg bg-card border', className)}>

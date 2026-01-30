@@ -73,6 +73,10 @@ export function PlayerPicker({
   }, [players, selectedPlayerIds, budget, search, teamFilter, sortBy]);
 
   const formatBudget = (amount: number) => {
+    if (amount >= 1_000_000) {
+      const millions = amount / 1_000_000;
+      return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('is-IS').format(amount);
   };
 

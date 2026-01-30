@@ -13,6 +13,10 @@ import { ROLE_INFO, BASE_POINTS, ROLE_MULTIPLIERS, INITIAL_BUDGET, TEAM_SIZE } f
 
 export default function RulesPage() {
   const formatBudget = (amount: number) => {
+    if (amount >= 1_000_000) {
+      const millions = amount / 1_000_000;
+      return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('is-IS').format(amount);
   };
 

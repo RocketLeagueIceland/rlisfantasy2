@@ -35,7 +35,7 @@ export const ROLE_MULTIPLIERS: Record<Role, Record<string, number>> = {
 } as const;
 
 // Initial budget for fantasy teams
-export const INITIAL_BUDGET = 10_000_000;
+export const INITIAL_BUDGET = 100_000_000;
 
 // Number of games in a Bo5 series
 export const GAMES_IN_SERIES = 5;
