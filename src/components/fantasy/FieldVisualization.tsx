@@ -47,7 +47,7 @@ export function FieldVisualization({
         </div>
 
         {/* Active players on field */}
-        <div className="relative flex flex-col items-center justify-between py-8 px-6 h-full">
+        <div className="relative flex flex-col items-center justify-center gap-16 py-16 px-6 h-full">
           {/* Striker - at top (attacking end) */}
           <div className="w-32">
             <PlayerSlot
