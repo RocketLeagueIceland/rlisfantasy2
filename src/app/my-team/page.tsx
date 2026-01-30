@@ -301,6 +301,30 @@ export default function MyTeamPage() {
   const isTeamComplete = teamPlayers.length === 6;
   const selectedPlayerIds = teamPlayers.map((p) => p.rl_player_id);
 
+  // Calculate budget for picker - add back the price of player being replaced
+  const getPickerBudget = () => {
+    const existingPlayer = teamPlayers.find((p) => {
+      if (pickerState.slotType === 'active') {
+        return p.slot_type === 'active' && p.role === pickerState.role;
+      }
+      return p.slot_type === 'substitute' && p.sub_order === pickerState.subOrder;
+    });
+    // Add back the price of the player being replaced
+    return budget + (existingPlayer?.purchase_price || 0);
+  };
+
+  // Get selected player IDs excluding the one being replaced
+  const getPickerSelectedIds = () => {
+    return teamPlayers
+      .filter((p) => {
+        if (pickerState.slotType === 'active') {
+          return !(p.slot_type === 'active' && p.role === pickerState.role);
+        }
+        return !(p.slot_type === 'substitute' && p.sub_order === pickerState.subOrder);
+      })
+      .map((p) => p.rl_player_id);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -443,8 +467,8 @@ export default function MyTeamPage() {
         onClose={() => setPickerState({ ...pickerState, open: false })}
         onSelect={handleSelectPlayer}
         players={allPlayers}
-        selectedPlayerIds={selectedPlayerIds}
-        budget={budget}
+        selectedPlayerIds={getPickerSelectedIds()}
+        budget={getPickerBudget()}
         slotType={pickerState.slotType}
         role={pickerState.role}
         subOrder={pickerState.subOrder}
