@@ -59,6 +59,18 @@ export async function POST(request: Request) {
     const unmatchedNames = getUnmatchedPlayerNames(parsedStats, registeredPlayers);
     console.log('[FetchStats] Unmatched players:', unmatchedNames);
 
+    // If there are unmatched players, block the fetch and require adding aliases first
+    if (unmatchedNames.length > 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'unmatched_players',
+        unmatchedPlayers: unmatchedNames,
+        matchedCount: matchedStats.size,
+        totalFromBallchasing: parsedStats.size,
+        message: `Found ${unmatchedNames.length} unknown player(s) in replays. Add aliases before continuing.`,
+      }, { status: 422 });
+    }
+
     // Convert to response format
     const statsResult = Array.from(matchedStats.entries()).map(([playerId, { player, stats }]) => ({
       playerId,
@@ -76,7 +88,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       stats: statsResult,
-      unmatchedPlayers: unmatchedNames,
       matchedCount: matchedStats.size,
       totalFromBallchasing: parsedStats.size,
     });

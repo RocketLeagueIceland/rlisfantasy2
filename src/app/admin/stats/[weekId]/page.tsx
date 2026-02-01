@@ -203,6 +203,14 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
 
       const data = await response.json();
 
+      // Handle unmatched players - block until aliases are added
+      if (data.error === 'unmatched_players') {
+        setUnmatchedPlayers(data.unmatchedPlayers);
+        toast.error(`Found ${data.unmatchedPlayers.length} unknown player(s). Add aliases before continuing.`);
+        setFetching(false);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch stats');
       }
@@ -227,13 +235,7 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
         return updated;
       });
 
-      // Store unmatched players for display
-      if (data.unmatchedPlayers && data.unmatchedPlayers.length > 0) {
-        setUnmatchedPlayers(data.unmatchedPlayers);
-        toast.warning(`Fetched stats, but ${data.unmatchedPlayers.length} players couldn't be matched. Add aliases to match them.`);
-      } else {
-        toast.success(`Successfully fetched stats for ${data.matchedCount} players`);
-      }
+      toast.success(`Successfully fetched stats for ${data.matchedCount} players`);
     } catch (e) {
       console.error('Error fetching from ballchasing:', e);
       toast.error(e instanceof Error ? e.message : 'Failed to fetch stats');
@@ -307,28 +309,43 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
         </div>
       </div>
 
-      {/* Unmatched players warning */}
+      {/* Unmatched players error - blocks fetch until resolved */}
       {unmatchedPlayers.length > 0 && (
-        <Card className="border-yellow-500 bg-yellow-500/10">
+        <Card className="border-red-500 bg-red-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-yellow-500">
+            <CardTitle className="flex items-center gap-2 text-red-500">
               <AlertTriangle className="h-5 w-5" />
-              Unmatched Players
+              Unknown Players Found
             </CardTitle>
             <CardDescription>
-              These players from ballchasing couldn&apos;t be matched. Add aliases in the Players page.
+              These players from ballchasing don&apos;t match any known player or alias.
+              You must add them as aliases before fetching stats.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
               {unmatchedPlayers.map((name) => (
                 <span
                   key={name}
-                  className="px-2 py-1 bg-yellow-500/20 rounded text-sm"
+                  className="px-3 py-1.5 bg-red-500/20 rounded-md text-sm font-medium"
                 >
                   {name}
                 </span>
               ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/admin/players')}
+              >
+                Go to Players Page to Add Aliases
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setUnmatchedPlayers([])}
+              >
+                Dismiss
+              </Button>
             </div>
           </CardContent>
         </Card>
