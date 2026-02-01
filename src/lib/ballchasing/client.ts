@@ -59,7 +59,11 @@ async function getGroupDetails(groupId: string): Promise<BallchasingGroupDetails
     throw new Error(`Ballchasing API error: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  // Log the raw response to see actual structure
+  console.log(`[Ballchasing] Group API response keys:`, Object.keys(data));
+  console.log(`[Ballchasing] Group API response:`, JSON.stringify(data, null, 2).slice(0, 2000));
+  return data;
 }
 
 async function getDirectReplays(groupId: string): Promise<BallchasingReplay[]> {
@@ -68,20 +72,25 @@ async function getDirectReplays(groupId: string): Promise<BallchasingReplay[]> {
     throw new Error('BALLCHASING_API_KEY is not set');
   }
 
-  const response = await fetch(
-    `${BALLCHASING_API_URL}/replays?group=${groupId}&count=200`,
-    {
-      headers: {
-        Authorization: apiKey,
-      },
-    }
-  );
+  // Use deep=true to include replays from subgroups
+  const url = `${BALLCHASING_API_URL}/replays?group=${groupId}&deep=true&count=200`;
+  console.log(`[Ballchasing] Fetching replays from: ${url}`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: apiKey,
+    },
+  });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[Ballchasing] Replays API error: ${response.status} ${response.statusText}`, errorText);
     throw new Error(`Ballchasing API error: ${response.statusText}`);
   }
 
   const data = await response.json();
+  console.log(`[Ballchasing] Replays API response keys:`, Object.keys(data));
+  console.log(`[Ballchasing] Replays count in response:`, data.list?.length || 0);
   return data.list || [];
 }
 
