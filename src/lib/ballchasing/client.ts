@@ -88,21 +88,26 @@ async function getDirectReplays(groupId: string): Promise<BallchasingReplay[]> {
 export async function getGroupReplays(groupId: string): Promise<BallchasingReplay[]> {
   const allReplays: BallchasingReplay[] = [];
 
+  console.log(`[Ballchasing] Fetching group: ${groupId}`);
+
   // Get replays directly in this group
   const directReplays = await getDirectReplays(groupId);
+  console.log(`[Ballchasing] Found ${directReplays.length} direct replays in group ${groupId}`);
   allReplays.push(...directReplays);
 
   // Check for subgroups and recursively fetch their replays
   const groupDetails = await getGroupDetails(groupId);
+  console.log(`[Ballchasing] Group "${groupDetails.name}" has ${groupDetails.children?.length || 0} subgroups`);
+
   if (groupDetails.children && groupDetails.children.length > 0) {
-    console.log(`[Ballchasing] Found ${groupDetails.children.length} subgroups in ${groupDetails.name}`);
     for (const child of groupDetails.children) {
-      console.log(`[Ballchasing] Fetching replays from subgroup: ${child.name}`);
+      console.log(`[Ballchasing] Fetching replays from subgroup: ${child.name} (${child.id})`);
       const childReplays = await getGroupReplays(child.id);
       allReplays.push(...childReplays);
     }
   }
 
+  console.log(`[Ballchasing] Total replays collected for ${groupId}: ${allReplays.length}`);
   return allReplays;
 }
 

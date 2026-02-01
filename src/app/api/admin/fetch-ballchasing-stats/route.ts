@@ -48,8 +48,25 @@ export async function POST(request: Request) {
 
     // Fetch stats from ballchasing
     console.log('[FetchStats] Fetching stats from ballchasing group:', groupId);
-    const parsedStats = await parseGroupStats(groupId);
-    console.log('[FetchStats] Got stats for', parsedStats.size, 'players from ballchasing');
+    let parsedStats: Map<string, import('@/lib/ballchasing/client').ParsedPlayerStats>;
+    try {
+      parsedStats = await parseGroupStats(groupId);
+      console.log('[FetchStats] Got stats for', parsedStats.size, 'players from ballchasing');
+
+      // Log all player names found for debugging
+      if (parsedStats.size > 0) {
+        const names = Array.from(parsedStats.values()).map(s => s.name);
+        console.log('[FetchStats] Players found in replays:', names);
+      } else {
+        console.log('[FetchStats] WARNING: No players found in any replays');
+      }
+    } catch (fetchError) {
+      console.error('[FetchStats] Error fetching from ballchasing:', fetchError);
+      return NextResponse.json({
+        error: fetchError instanceof Error ? fetchError.message : 'Failed to fetch from Ballchasing',
+        groupId
+      }, { status: 500 });
+    }
 
     // Match players using names and aliases
     const matchedStats = matchPlayerStats(parsedStats, registeredPlayers);

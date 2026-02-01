@@ -4,7 +4,14 @@
       "Bash(npx create-next-app:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: resolve Supabase client initialization deadlock with API routes\n\nThe Supabase SSR client had an initialization deadlock that caused\ngetSession/getUser and database queries to hang indefinitely on the\nclient side. Fixed by moving all data fetching to server-side API routes.\n\nChanges:\n- Add API routes for players, weeks, fantasy teams, transfers, and user data\n- Add server-side signout route to properly clear cookies\n- Update Header to fetch user data \\(including admin status\\) via API\n- Update my-team page to use API routes for all data operations\n- Remove singleton caching from Supabase client to avoid stale instances\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:ballchasing.com)"
     ]
   }
 }
