@@ -126,16 +126,36 @@ export default async function UserProfilePage({ params }: Props) {
                           </span>
                         </div>
                         {breakdown && breakdown.length > 0 && (
-                          <div className="space-y-1 text-sm text-muted-foreground">
+                          <div className="space-y-0">
                             {breakdown.map((player) => (
-                              <div key={player.player_id} className="flex justify-between">
-                                <span className="flex items-center gap-1">
-                                  <span className="text-xs uppercase">
-                                    {player.role.charAt(0)}
+                              <div key={player.player_id} className="border-b last:border-0 pb-2 mb-2 last:mb-0 last:pb-0">
+                                {/* Header: Role + Name + Points */}
+                                <div className="flex justify-between items-center">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-xs font-medium bg-primary/20 px-1.5 py-0.5 rounded">
+                                      {player.role.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="font-medium text-foreground">{player.player_name}</span>
                                   </span>
-                                  {player.player_name}
-                                </span>
-                                <span>{player.total_points} pts</span>
+                                  <span className="font-bold text-foreground">{player.total_points} pts</span>
+                                </div>
+
+                                {/* Stats row */}
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {player.games_used} games • {player.stats.goals}G, {player.stats.assists}A, {player.stats.saves}S, {player.stats.shots}SH{player.stats.demos_received > 0 && `, -${player.stats.demos_received}D`}
+                                </div>
+
+                                {/* Points math */}
+                                <div className="text-xs text-muted-foreground">
+                                  Base: {player.base_points} + Bonus: {player.role_bonus} = {player.base_points + player.role_bonus}{player.games_used > 0 && ` ÷ ${player.games_used} = ${player.total_points} avg`}
+                                </div>
+
+                                {/* Substitution info */}
+                                {player.substitutions?.map((sub) => (
+                                  <div key={sub.sub_player_id} className="text-xs text-yellow-500 mt-1">
+                                    ⚡ {sub.sub_player_name} filled in ({sub.games_filled} games)
+                                  </div>
+                                ))}
                               </div>
                             ))}
                           </div>
