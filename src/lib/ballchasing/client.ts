@@ -1,28 +1,20 @@
 const BALLCHASING_API_URL = 'https://ballchasing.com/api';
 
-interface BallchasingReplay {
+// Player stats as returned in the group's players array
+interface BallchasingGroupPlayer {
+  platform: string;
   id: string;
-  title: string;
-  blue: {
-    players: BallchasingPlayer[];
-  };
-  orange: {
-    players: BallchasingPlayer[];
-  };
-}
-
-interface BallchasingPlayer {
-  id: {
-    platform: string;
-    id: string;
-  };
   name: string;
-  stats: {
+  team?: string;
+  cumulative: {
+    games: number;
+    wins: number;
     core: {
-      goals: number;
-      assists: number;
-      saves: number;
       shots: number;
+      goals: number;
+      saves: number;
+      assists: number;
+      score: number;
     };
     demo: {
       inflicted: number;
@@ -31,112 +23,10 @@ interface BallchasingPlayer {
   };
 }
 
-interface BallchasingGroup {
+interface BallchasingGroupResponse {
   id: string;
   name: string;
-  children?: BallchasingGroup[];
-}
-
-interface BallchasingGroupDetails {
-  id: string;
-  name: string;
-  children?: { id: string; name: string }[];
-}
-
-async function getGroupDetails(groupId: string): Promise<BallchasingGroupDetails> {
-  const apiKey = process.env.BALLCHASING_API_KEY;
-  if (!apiKey) {
-    throw new Error('BALLCHASING_API_KEY is not set');
-  }
-
-  const response = await fetch(`${BALLCHASING_API_URL}/groups/${groupId}`, {
-    headers: {
-      Authorization: apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ballchasing API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  // Log the raw response to see actual structure
-  console.log(`[Ballchasing] Group API response keys:`, Object.keys(data));
-  console.log(`[Ballchasing] Group API response:`, JSON.stringify(data, null, 2).slice(0, 2000));
-  return data;
-}
-
-async function getDirectReplays(groupId: string): Promise<BallchasingReplay[]> {
-  const apiKey = process.env.BALLCHASING_API_KEY;
-  if (!apiKey) {
-    throw new Error('BALLCHASING_API_KEY is not set');
-  }
-
-  // Use deep=true to include replays from subgroups
-  const url = `${BALLCHASING_API_URL}/replays?group=${groupId}&deep=true&count=200`;
-  console.log(`[Ballchasing] Fetching replays from: ${url}`);
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[Ballchasing] Replays API error: ${response.status} ${response.statusText}`, errorText);
-    throw new Error(`Ballchasing API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  console.log(`[Ballchasing] Replays API response keys:`, Object.keys(data));
-  console.log(`[Ballchasing] Replays count in response:`, data.list?.length || 0);
-  return data.list || [];
-}
-
-export async function getGroupReplays(groupId: string): Promise<BallchasingReplay[]> {
-  const allReplays: BallchasingReplay[] = [];
-
-  console.log(`[Ballchasing] Fetching group: ${groupId}`);
-
-  // Get replays directly in this group
-  const directReplays = await getDirectReplays(groupId);
-  console.log(`[Ballchasing] Found ${directReplays.length} direct replays in group ${groupId}`);
-  allReplays.push(...directReplays);
-
-  // Check for subgroups and recursively fetch their replays
-  const groupDetails = await getGroupDetails(groupId);
-  console.log(`[Ballchasing] Group "${groupDetails.name}" has ${groupDetails.children?.length || 0} subgroups`);
-
-  if (groupDetails.children && groupDetails.children.length > 0) {
-    for (const child of groupDetails.children) {
-      console.log(`[Ballchasing] Fetching replays from subgroup: ${child.name} (${child.id})`);
-      const childReplays = await getGroupReplays(child.id);
-      allReplays.push(...childReplays);
-    }
-  }
-
-  console.log(`[Ballchasing] Total replays collected for ${groupId}: ${allReplays.length}`);
-  return allReplays;
-}
-
-export async function getReplayDetails(replayId: string): Promise<BallchasingReplay> {
-  const apiKey = process.env.BALLCHASING_API_KEY;
-  if (!apiKey) {
-    throw new Error('BALLCHASING_API_KEY is not set');
-  }
-
-  const response = await fetch(`${BALLCHASING_API_URL}/replays/${replayId}`, {
-    headers: {
-      Authorization: apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ballchasing API error: ${response.statusText}`);
-  }
-
-  return response.json();
+  players?: BallchasingGroupPlayer[];
 }
 
 export interface ParsedPlayerStats {
@@ -160,50 +50,71 @@ export interface ParsedPlayerStats {
   };
 }
 
+async function getGroupWithPlayers(groupId: string): Promise<BallchasingGroupResponse> {
+  const apiKey = process.env.BALLCHASING_API_KEY;
+  if (!apiKey) {
+    throw new Error('BALLCHASING_API_KEY is not set');
+  }
+
+  const response = await fetch(`${BALLCHASING_API_URL}/groups/${groupId}`, {
+    headers: {
+      Authorization: apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ballchasing API error: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function parseGroupStats(groupId: string): Promise<Map<string, ParsedPlayerStats>> {
-  const replays = await getGroupReplays(groupId);
+  console.log(`[Ballchasing] Fetching group stats for: ${groupId}`);
+
+  const group = await getGroupWithPlayers(groupId);
   const playerStats = new Map<string, ParsedPlayerStats>();
 
-  // Fetch details for each replay
-  for (let i = 0; i < replays.length; i++) {
-    const replay = replays[i];
-    const details = await getReplayDetails(replay.id);
+  if (!group.players || group.players.length === 0) {
+    console.log(`[Ballchasing] No players found in group "${group.name}"`);
+    return playerStats;
+  }
 
-    const allPlayers = [...details.blue.players, ...details.orange.players];
+  console.log(`[Ballchasing] Found ${group.players.length} players in group "${group.name}"`);
 
-    for (const player of allPlayers) {
-      const playerId = `${player.id.platform}:${player.id.id}`;
-      const existing = playerStats.get(playerId) || {
-        ballchasingId: playerId,
-        name: player.name,
-        gamesPlayed: 0,
-        perGameStats: [],
-        totals: {
-          goals: 0,
-          assists: 0,
-          saves: 0,
-          shots: 0,
-          demosReceived: 0,
-        },
-      };
+  // Use the pre-aggregated player stats from the group
+  for (const player of group.players) {
+    const playerId = `${player.platform}:${player.id}`;
+    const gamesPlayed = player.cumulative.games;
 
-      existing.gamesPlayed += 1;
-      existing.perGameStats.push({
-        gameNumber: existing.gamesPlayed,
-        goals: player.stats.core.goals,
-        assists: player.stats.core.assists,
-        saves: player.stats.core.saves,
-        shots: player.stats.core.shots,
-        demosReceived: player.stats.demo.taken,
+    // Generate per-game stats (distribute totals evenly since we don't have per-game data)
+    const perGameStats = [];
+    for (let i = 1; i <= gamesPlayed; i++) {
+      perGameStats.push({
+        gameNumber: i,
+        goals: Math.floor(player.cumulative.core.goals / gamesPlayed),
+        assists: Math.floor(player.cumulative.core.assists / gamesPlayed),
+        saves: Math.floor(player.cumulative.core.saves / gamesPlayed),
+        shots: Math.floor(player.cumulative.core.shots / gamesPlayed),
+        demosReceived: Math.floor(player.cumulative.demo.taken / gamesPlayed),
       });
-      existing.totals.goals += player.stats.core.goals;
-      existing.totals.assists += player.stats.core.assists;
-      existing.totals.saves += player.stats.core.saves;
-      existing.totals.shots += player.stats.core.shots;
-      existing.totals.demosReceived += player.stats.demo.taken;
-
-      playerStats.set(playerId, existing);
     }
+
+    playerStats.set(playerId, {
+      ballchasingId: playerId,
+      name: player.name,
+      gamesPlayed,
+      perGameStats,
+      totals: {
+        goals: player.cumulative.core.goals,
+        assists: player.cumulative.core.assists,
+        saves: player.cumulative.core.saves,
+        shots: player.cumulative.core.shots,
+        demosReceived: player.cumulative.demo.taken,
+      },
+    });
+
+    console.log(`[Ballchasing] Player "${player.name}": ${gamesPlayed} games, ${player.cumulative.core.goals} goals`);
   }
 
   return playerStats;
