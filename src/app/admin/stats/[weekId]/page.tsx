@@ -244,25 +244,37 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
     setFetching(false);
   };
 
+  const [publishing, setPublishing] = useState(false);
+
   const handlePublishScores = async () => {
     if (!week?.stats_fetched) {
       toast.error('Please save stats first');
       return;
     }
 
-    // TODO: Calculate scores for all fantasy teams
-    // For now, just mark as published
-    const { error } = await supabase
-      .from('weeks')
-      .update({ scores_published: true })
-      .eq('id', weekId);
+    setPublishing(true);
 
-    if (error) {
-      toast.error('Failed to publish scores');
-    } else {
-      toast.success('Scores published');
+    try {
+      const response = await fetch('/api/admin/publish-scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish scores');
+      }
+
+      toast.success(`Scores published for ${data.teamsScored} teams`);
       fetchData();
+    } catch (e) {
+      console.error('Error publishing scores:', e);
+      toast.error(e instanceof Error ? e.message : 'Failed to publish scores');
     }
+
+    setPublishing(false);
   };
 
   if (loading) {
@@ -300,11 +312,11 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
           </Button>
           <Button
             onClick={handlePublishScores}
-            disabled={!week?.stats_fetched || week?.scores_published}
+            disabled={!week?.stats_fetched || week?.scores_published || publishing}
             variant={week?.scores_published ? 'secondary' : 'default'}
           >
             <CheckCircle className="mr-2 h-4 w-4" />
-            {week?.scores_published ? 'Published' : 'Publish Scores'}
+            {week?.scores_published ? 'Published' : publishing ? 'Publishing...' : 'Publish Scores'}
           </Button>
         </div>
       </div>

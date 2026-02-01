@@ -1,7 +1,7 @@
-import type { Role, PerGameStats, PointsBreakdown, PlayerStats, FantasyTeamPlayer } from '@/types';
-import { BASE_POINTS, ROLE_MULTIPLIERS, GAMES_IN_SERIES } from './constants';
+import type { Role, PointsBreakdown, PlayerStats, FantasyTeamPlayer } from '@/types';
+import { BASE_POINTS, ROLE_MULTIPLIERS } from './constants';
 
-interface GameScore {
+interface TotalStats {
   goals: number;
   assists: number;
   saves: number;
@@ -10,9 +10,10 @@ interface GameScore {
 }
 
 /**
- * Calculate points for a single game with role bonuses
+ * Calculate points from total stats with role bonuses
+ * Returns the total points (not averaged)
  */
-export function calculateGamePoints(stats: GameScore, role: Role): number {
+export function calculateTotalPoints(stats: TotalStats, role: Role): number {
   const multipliers = ROLE_MULTIPLIERS[role];
 
   return (
@@ -25,104 +26,40 @@ export function calculateGamePoints(stats: GameScore, role: Role): number {
 }
 
 /**
- * Calculate average points across games played
+ * Calculate base points (without role bonus) from total stats
  */
-export function calculateAveragePoints(
-  perGameStats: PerGameStats[],
-  role: Role
-): { totalPoints: number; averagePoints: number } {
-  if (perGameStats.length === 0) {
-    return { totalPoints: 0, averagePoints: 0 };
-  }
+export function calculateBasePoints(stats: TotalStats): number {
+  return (
+    stats.goals * BASE_POINTS.goal +
+    stats.assists * BASE_POINTS.assist +
+    stats.saves * BASE_POINTS.save +
+    stats.shots * BASE_POINTS.shot +
+    stats.demos_received * BASE_POINTS.demo_received
+  );
+}
 
-  const totalPoints = perGameStats.reduce((sum, game) => {
-    return sum + calculateGamePoints({
-      goals: game.goals,
-      assists: game.assists,
-      saves: game.saves,
-      shots: game.shots,
-      demos_received: game.demos_received,
-    }, role);
-  }, 0);
-
+/**
+ * Extract total stats from PlayerStats
+ */
+function getTotalStatsFromPlayerStats(playerStats: PlayerStats): TotalStats {
   return {
-    totalPoints,
-    averagePoints: totalPoints / perGameStats.length,
+    goals: playerStats.total_goals,
+    assists: playerStats.total_assists,
+    saves: playerStats.total_saves,
+    shots: playerStats.total_shots,
+    demos_received: playerStats.total_demos_received,
   };
 }
 
 /**
- * Apply substitution logic when active player misses games
- * Returns the games to use for scoring, potentially from substitutes
- */
-export function applySubstitutions(
-  activePlayer: {
-    playerId: string;
-    playerName: string;
-    role: Role;
-    stats: PlayerStats | null;
-  },
-  substitutes: {
-    playerId: string;
-    playerName: string;
-    subOrder: number;
-    stats: PlayerStats | null;
-  }[]
-): {
-  gamesUsed: PerGameStats[];
-  substitutionDetails: {
-    subPlayerId: string;
-    subPlayerName: string;
-    gamesFilled: number;
-  }[];
-} {
-  const result: PerGameStats[] = [];
-  const substitutionDetails: {
-    subPlayerId: string;
-    subPlayerName: string;
-    gamesFilled: number;
-  }[] = [];
-
-  // Get active player's games
-  const activeGames = activePlayer.stats?.per_game_stats || [];
-  const gamesNeeded = GAMES_IN_SERIES;
-
-  // Add active player's games first
-  result.push(...activeGames);
-
-  // If active player played all games, no substitution needed
-  if (activeGames.length >= gamesNeeded) {
-    return { gamesUsed: result.slice(0, gamesNeeded), substitutionDetails };
-  }
-
-  // Sort substitutes by sub_order
-  const sortedSubs = [...substitutes].sort((a, b) => a.subOrder - b.subOrder);
-
-  // Fill remaining games with substitutes
-  let gamesRemaining = gamesNeeded - result.length;
-
-  for (const sub of sortedSubs) {
-    if (gamesRemaining <= 0) break;
-
-    const subGames = sub.stats?.per_game_stats || [];
-    const gamesToUse = subGames.slice(0, gamesRemaining);
-
-    if (gamesToUse.length > 0) {
-      result.push(...gamesToUse);
-      substitutionDetails.push({
-        subPlayerId: sub.playerId,
-        subPlayerName: sub.playerName,
-        gamesFilled: gamesToUse.length,
-      });
-      gamesRemaining -= gamesToUse.length;
-    }
-  }
-
-  return { gamesUsed: result, substitutionDetails };
-}
-
-/**
  * Calculate total points for a fantasy team for a given week
+ *
+ * Scoring rules:
+ * - Each active role (striker, midfield, goalkeeper) gets their role's 2x bonus
+ * - If active player has ≥1 game, use their stats (no substitution)
+ * - If active player has 0 games, substitute with Sub 1, then Sub 2, then Sub 3
+ * - Substitutes inherit the active player's role bonus
+ * - Final score is total points / games played (average per game)
  */
 export function calculateTeamScore(
   teamPlayers: FantasyTeamPlayer[],
@@ -140,88 +77,76 @@ export function calculateTeamScore(
 
   const substitutes = teamPlayers
     .filter(p => p.slot_type === 'substitute')
-    .map(p => ({
-      playerId: p.rl_player_id,
-      playerName: p.rl_player?.name || 'Unknown',
-      subOrder: p.sub_order!,
-      stats: playerStats.get(p.rl_player_id) || null,
-    }));
+    .sort((a, b) => (a.sub_order || 0) - (b.sub_order || 0));
 
-  // Track which substitute games have been used
-  const usedSubGames = new Map<string, number>();
+  // Track which substitutes have been used (each sub can only fill in once)
+  const usedSubIds = new Set<string>();
 
   for (const activePlayer of activePlayers) {
     const role = activePlayer.role!;
-    const stats = playerStats.get(activePlayer.rl_player_id) || null;
+    const activeStats = playerStats.get(activePlayer.rl_player_id);
+    const activeGamesPlayed = activeStats?.games_played || 0;
 
-    // Apply substitution logic
-    const { gamesUsed, substitutionDetails } = applySubstitutions(
-      {
-        playerId: activePlayer.rl_player_id,
-        playerName: activePlayer.rl_player?.name || 'Unknown',
-        role,
-        stats,
-      },
-      substitutes.map(sub => ({
-        ...sub,
-        stats: sub.stats ? {
-          ...sub.stats,
-          per_game_stats: sub.stats.per_game_stats.slice(
-            usedSubGames.get(sub.playerId) || 0
-          ),
-        } : null,
-      }))
-    );
+    let usedStats: TotalStats | null = null;
+    let gamesPlayed = 0;
+    let substitutionDetails: { sub_player_id: string; sub_player_name: string; games_filled: number; points_earned: number }[] | undefined;
 
-    // Update used games for substitutes
-    for (const subDetail of substitutionDetails) {
-      const currentUsed = usedSubGames.get(subDetail.subPlayerId) || 0;
-      usedSubGames.set(subDetail.subPlayerId, currentUsed + subDetail.gamesFilled);
+    if (activeGamesPlayed > 0) {
+      // Active player played - use their stats
+      usedStats = getTotalStatsFromPlayerStats(activeStats!);
+      gamesPlayed = activeGamesPlayed;
+    } else {
+      // Active player didn't play - try substitutes in order
+      for (const sub of substitutes) {
+        if (usedSubIds.has(sub.rl_player_id)) continue;
+
+        const subStats = playerStats.get(sub.rl_player_id);
+        const subGamesPlayed = subStats?.games_played || 0;
+
+        if (subGamesPlayed > 0) {
+          // Found a substitute who played
+          usedSubIds.add(sub.rl_player_id);
+          usedStats = getTotalStatsFromPlayerStats(subStats!);
+          gamesPlayed = subGamesPlayed;
+          substitutionDetails = [{
+            sub_player_id: sub.rl_player_id,
+            sub_player_name: sub.rl_player?.name || 'Unknown',
+            games_filled: subGamesPlayed,
+            points_earned: 0, // Will be calculated below
+          }];
+          break;
+        }
+      }
     }
 
-    // Calculate points with role bonus
-    const { totalPoints, averagePoints } = calculateAveragePoints(gamesUsed, role);
+    // Calculate points
+    let totalPoints = 0;
+    let basePoints = 0;
+    let averagePoints = 0;
+    let finalStats: TotalStats = { goals: 0, assists: 0, saves: 0, shots: 0, demos_received: 0 };
 
-    // Calculate base points (without role bonus) for comparison
-    const basePoints = gamesUsed.reduce((sum, game) => {
-      return sum + (
-        game.goals * BASE_POINTS.goal +
-        game.assists * BASE_POINTS.assist +
-        game.saves * BASE_POINTS.save +
-        game.shots * BASE_POINTS.shot +
-        game.demos_received * BASE_POINTS.demo_received
-      );
-    }, 0);
+    if (usedStats && gamesPlayed > 0) {
+      totalPoints = calculateTotalPoints(usedStats, role);
+      basePoints = calculateBasePoints(usedStats);
+      averagePoints = totalPoints / gamesPlayed;
+      finalStats = usedStats;
 
-    // Sum up total stats
-    const totalStats = gamesUsed.reduce(
-      (acc, game) => ({
-        goals: acc.goals + game.goals,
-        assists: acc.assists + game.assists,
-        saves: acc.saves + game.saves,
-        shots: acc.shots + game.shots,
-        demos_received: acc.demos_received + game.demos_received,
-      }),
-      { goals: 0, assists: 0, saves: 0, shots: 0, demos_received: 0 }
-    );
+      // Update sub's points_earned if there was a substitution
+      if (substitutionDetails && substitutionDetails.length > 0) {
+        substitutionDetails[0].points_earned = Math.round(averagePoints);
+      }
+    }
 
     breakdown.push({
       player_id: activePlayer.rl_player_id,
       player_name: activePlayer.rl_player?.name || 'Unknown',
       role,
-      games_used: gamesUsed.length,
+      games_used: gamesPlayed,
       base_points: basePoints,
       role_bonus: totalPoints - basePoints,
-      total_points: Math.round(averagePoints), // Average across games
-      stats: totalStats,
-      substitutions: substitutionDetails.length > 0
-        ? substitutionDetails.map(s => ({
-            sub_player_id: s.subPlayerId,
-            sub_player_name: s.subPlayerName,
-            games_filled: s.gamesFilled,
-            points_earned: 0, // Calculated separately if needed
-          }))
-        : undefined,
+      total_points: Math.round(averagePoints), // Average across games, rounded
+      stats: finalStats,
+      substitutions: substitutionDetails,
     });
   }
 
