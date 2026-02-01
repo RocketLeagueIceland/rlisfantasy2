@@ -37,7 +37,32 @@ interface BallchasingGroup {
   children?: BallchasingGroup[];
 }
 
-export async function getGroupReplays(groupId: string): Promise<BallchasingReplay[]> {
+interface BallchasingGroupDetails {
+  id: string;
+  name: string;
+  children?: { id: string; name: string }[];
+}
+
+async function getGroupDetails(groupId: string): Promise<BallchasingGroupDetails> {
+  const apiKey = process.env.BALLCHASING_API_KEY;
+  if (!apiKey) {
+    throw new Error('BALLCHASING_API_KEY is not set');
+  }
+
+  const response = await fetch(`${BALLCHASING_API_URL}/groups/${groupId}`, {
+    headers: {
+      Authorization: apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ballchasing API error: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+async function getDirectReplays(groupId: string): Promise<BallchasingReplay[]> {
   const apiKey = process.env.BALLCHASING_API_KEY;
   if (!apiKey) {
     throw new Error('BALLCHASING_API_KEY is not set');
@@ -58,6 +83,27 @@ export async function getGroupReplays(groupId: string): Promise<BallchasingRepla
 
   const data = await response.json();
   return data.list || [];
+}
+
+export async function getGroupReplays(groupId: string): Promise<BallchasingReplay[]> {
+  const allReplays: BallchasingReplay[] = [];
+
+  // Get replays directly in this group
+  const directReplays = await getDirectReplays(groupId);
+  allReplays.push(...directReplays);
+
+  // Check for subgroups and recursively fetch their replays
+  const groupDetails = await getGroupDetails(groupId);
+  if (groupDetails.children && groupDetails.children.length > 0) {
+    console.log(`[Ballchasing] Found ${groupDetails.children.length} subgroups in ${groupDetails.name}`);
+    for (const child of groupDetails.children) {
+      console.log(`[Ballchasing] Fetching replays from subgroup: ${child.name}`);
+      const childReplays = await getGroupReplays(child.id);
+      allReplays.push(...childReplays);
+    }
+  }
+
+  return allReplays;
 }
 
 export async function getReplayDetails(replayId: string): Promise<BallchasingReplay> {
