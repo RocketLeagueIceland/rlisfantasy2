@@ -70,48 +70,32 @@ export async function PUT(request: Request) {
       return p.slot_type === 'substitute' && p.sub_order === targetSubOrder;
     });
 
-    // Store the old position
-    const oldSlotType = playerEntry.slot_type;
-    const oldRole = playerEntry.role;
-    const oldSubOrder = playerEntry.sub_order;
-
-    // Update the moving player
-    const { error: updateError } = await supabase
-      .from('fantasy_team_players')
-      .update({
-        slot_type: targetSlotType,
-        role: targetRole || null,
-        sub_order: targetSubOrder || null,
-      })
-      .eq('id', playerEntry.id);
-
-    if (updateError) {
-      console.error('Error updating player:', updateError);
-      return NextResponse.json({ error: 'Failed to move player' }, { status: 500 });
-    }
-
-    // If there was a player in the target slot, move them to the old slot
+    // If there's a player in the target slot, use the swap function
     if (playerInTargetSlot && playerInTargetSlot.id !== playerEntry.id) {
-      const { error: swapError } = await supabase
-        .from('fantasy_team_players')
-        .update({
-          slot_type: oldSlotType,
-          role: oldRole,
-          sub_order: oldSubOrder,
-        })
-        .eq('id', playerInTargetSlot.id);
+      // Use the database function to swap atomically (bypasses trigger conflicts)
+      const { error: swapError } = await supabase.rpc('swap_player_positions', {
+        p_team_id: teamId,
+        p_player1_id: playerEntry.id,
+        p_player2_id: playerInTargetSlot.id,
+      });
 
       if (swapError) {
-        console.error('Error updating swapped player:', swapError);
-        // Try to rollback
-        await supabase
-          .from('fantasy_team_players')
-          .update({
-            slot_type: oldSlotType,
-            role: oldRole,
-            sub_order: oldSubOrder,
-          })
-          .eq('id', playerEntry.id);
+        console.error('Error swapping players:', swapError);
+        return NextResponse.json({ error: 'Failed to move player' }, { status: 500 });
+      }
+    } else {
+      // No player in target slot, just update the moving player
+      const { error: updateError } = await supabase
+        .from('fantasy_team_players')
+        .update({
+          slot_type: targetSlotType,
+          role: targetRole || null,
+          sub_order: targetSubOrder || null,
+        })
+        .eq('id', playerEntry.id);
+
+      if (updateError) {
+        console.error('Error updating player:', updateError);
         return NextResponse.json({ error: 'Failed to move player' }, { status: 500 });
       }
     }

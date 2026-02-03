@@ -65,41 +65,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Players not found on team' }, { status: 404 });
     }
 
-    // Swap the slot_type, role, and sub_order atomically
-    const { error: update1Error } = await supabase
-      .from('fantasy_team_players')
-      .update({
-        slot_type: player2Entry.slot_type,
-        role: player2Entry.role,
-        sub_order: player2Entry.sub_order,
-      })
-      .eq('id', player1Entry.id);
+    // Use the database function to swap atomically (bypasses trigger conflicts)
+    const { error: swapError } = await supabase.rpc('swap_player_positions', {
+      p_team_id: teamId,
+      p_player1_id: player1Entry.id,
+      p_player2_id: player2Entry.id,
+    });
 
-    if (update1Error) {
-      console.error('Error updating player 1:', update1Error);
-      return NextResponse.json({ error: 'Failed to swap players' }, { status: 500 });
-    }
-
-    const { error: update2Error } = await supabase
-      .from('fantasy_team_players')
-      .update({
-        slot_type: player1Entry.slot_type,
-        role: player1Entry.role,
-        sub_order: player1Entry.sub_order,
-      })
-      .eq('id', player2Entry.id);
-
-    if (update2Error) {
-      console.error('Error updating player 2:', update2Error);
-      // Try to rollback the first update
-      await supabase
-        .from('fantasy_team_players')
-        .update({
-          slot_type: player1Entry.slot_type,
-          role: player1Entry.role,
-          sub_order: player1Entry.sub_order,
-        })
-        .eq('id', player1Entry.id);
+    if (swapError) {
+      console.error('Error swapping players:', swapError);
       return NextResponse.json({ error: 'Failed to swap players' }, { status: 500 });
     }
 
