@@ -84,8 +84,8 @@ export function PlayerSlot({
         {...(isDragEnabled ? { ...attributes, ...listeners } : {})}
         className={cn(
           'relative group',
-          isDragEnabled && 'touch-none',
-          showIsDragging && 'opacity-50',
+          isDragEnabled && 'touch-none cursor-grab active:cursor-grabbing',
+          showIsDragging && 'opacity-50 cursor-grabbing',
           showIsOver && isValidDrop && 'ring-2 ring-green-500 ring-offset-2 rounded-xl',
           showIsOver && !isValidDrop && 'ring-2 ring-red-500 ring-offset-2 rounded-xl'
         )}

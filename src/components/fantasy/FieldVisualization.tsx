@@ -12,6 +12,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { RLPlayer, Role, FantasyTeamPlayer } from '@/types';
 import { PlayerSlot } from './PlayerSlot';
@@ -149,17 +150,23 @@ export function FieldVisualization({
       return; // Can't drag from empty slot
     }
 
-    // Check if drop is valid
-    if (!isValidDrop(sourceId, targetId)) {
-      return; // Invalid drop - the visual feedback already showed red
-    }
-
+    // Check if drop is valid and show reason if not
     if (targetPlayerId) {
-      // Swap with another player
+      // Swapping with another player
+      const validation = canSwapPlayers(players, sourcePlayerId, targetPlayerId);
+      if (!validation.valid) {
+        toast.error(validation.reason || 'Cannot swap these players');
+        return;
+      }
       onSwapPlayers?.(sourcePlayerId, targetPlayerId);
     } else {
-      // Move to empty slot
+      // Moving to empty slot
       const { slotType, role, subOrder } = parseSlotId(targetId);
+      const validation = canMoveToEmptySlot(players, sourcePlayerId, slotType);
+      if (!validation.valid) {
+        toast.error(validation.reason || 'Cannot move player here');
+        return;
+      }
       onMovePlayer?.(sourcePlayerId, slotType, role, subOrder);
     }
   };

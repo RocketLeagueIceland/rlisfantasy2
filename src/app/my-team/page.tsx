@@ -566,9 +566,13 @@ export default function MyTeamPage() {
                 </>
               )}
             </div>
-            {!team && (
+            {!team ? (
               <CardDescription>
                 Click on a slot to add a player
+              </CardDescription>
+            ) : (
+              <CardDescription>
+                Drag players to swap positions
               </CardDescription>
             )}
           </CardHeader>
