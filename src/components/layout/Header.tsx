@@ -20,6 +20,7 @@ import type { User as UserType } from '@/types';
 const navLinks: { href: string; label: string; icon?: LucideIcon }[] = [
   { href: '/', label: 'Home' },
   { href: '/scoreboard', label: 'Scoreboard' },
+  { href: '/players', label: 'Players' },
   { href: '/rules', label: 'Rules' },
   { href: '/my-team', label: 'My Team' },
   { href: '/donate', label: 'Donate', icon: Heart },
