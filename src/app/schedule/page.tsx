@@ -1,124 +1,7 @@
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { RL_TEAM_NAMES } from '@/lib/scoring/constants';
-
-// Map display names back to team image keys
-const TEAM_KEY_MAP: Record<string, string> = {
-  'Dusty': 'dusty',
-  'Thor': 'thor',
-  'Ómon': 'omon',
-  '354 Esports': '354esports',
-  'Hamar': 'hamar',
-  'Stjarnan': 'stjarnan',
-};
-
-interface Match {
-  time: string;
-  team1: string;
-  team2: string;
-  score1: number | null;
-  score2: number | null;
-}
-
-interface Round {
-  round: number;
-  date: string;
-  matches: Match[];
-}
-
-const schedule: Round[] = [
-  {
-    round: 1,
-    date: '2026-02-01',
-    matches: [
-      { time: '14:00', team1: 'Dusty', team2: 'Thor', score1: 1, score2: 3 },
-      { time: '14:45', team1: 'Ómon', team2: '354 Esports', score1: 0, score2: 3 },
-      { time: '15:30', team1: 'Hamar', team2: 'Stjarnan', score1: 0, score2: 3 },
-    ],
-  },
-  {
-    round: 2,
-    date: '2026-02-08',
-    matches: [
-      { time: '14:00', team1: 'Ómon', team2: 'Thor', score1: 0, score2: 3 },
-      { time: '14:45', team1: 'Hamar', team2: 'Dusty', score1: 0, score2: 3 },
-      { time: '15:30', team1: 'Stjarnan', team2: '354 Esports', score1: 2, score2: 3 },
-    ],
-  },
-  {
-    round: 3,
-    date: '2026-02-15',
-    matches: [
-      { time: '14:00', team1: 'Hamar', team2: 'Thor', score1: null, score2: null },
-      { time: '14:45', team1: 'Stjarnan', team2: 'Ómon', score1: null, score2: null },
-      { time: '15:30', team1: '354 Esports', team2: 'Dusty', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 4,
-    date: '2026-02-22',
-    matches: [
-      { time: '14:00', team1: 'Stjarnan', team2: 'Thor', score1: null, score2: null },
-      { time: '14:45', team1: '354 Esports', team2: 'Hamar', score1: null, score2: null },
-      { time: '15:30', team1: 'Dusty', team2: 'Ómon', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 5,
-    date: '2026-03-01',
-    matches: [
-      { time: '14:00', team1: '354 Esports', team2: 'Thor', score1: null, score2: null },
-      { time: '14:45', team1: 'Dusty', team2: 'Stjarnan', score1: null, score2: null },
-      { time: '15:30', team1: 'Ómon', team2: 'Hamar', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 6,
-    date: '2026-03-08',
-    matches: [
-      { time: '14:00', team1: 'Thor', team2: 'Dusty', score1: null, score2: null },
-      { time: '14:45', team1: '354 Esports', team2: 'Ómon', score1: null, score2: null },
-      { time: '15:30', team1: 'Stjarnan', team2: 'Hamar', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 7,
-    date: '2026-03-15',
-    matches: [
-      { time: '14:00', team1: 'Thor', team2: 'Ómon', score1: null, score2: null },
-      { time: '14:45', team1: 'Dusty', team2: 'Hamar', score1: null, score2: null },
-      { time: '15:30', team1: '354 Esports', team2: 'Stjarnan', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 8,
-    date: '2026-03-22',
-    matches: [
-      { time: '14:00', team1: 'Thor', team2: 'Hamar', score1: null, score2: null },
-      { time: '14:45', team1: 'Ómon', team2: 'Stjarnan', score1: null, score2: null },
-      { time: '15:30', team1: 'Dusty', team2: '354 Esports', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 9,
-    date: '2026-03-29',
-    matches: [
-      { time: '14:00', team1: 'Thor', team2: 'Stjarnan', score1: null, score2: null },
-      { time: '14:45', team1: 'Hamar', team2: '354 Esports', score1: null, score2: null },
-      { time: '15:30', team1: 'Ómon', team2: 'Dusty', score1: null, score2: null },
-    ],
-  },
-  {
-    round: 10,
-    date: '2026-04-19',
-    matches: [
-      { time: '14:00', team1: 'Thor', team2: '354 Esports', score1: null, score2: null },
-      { time: '14:45', team1: 'Stjarnan', team2: 'Dusty', score1: null, score2: null },
-      { time: '15:30', team1: 'Hamar', team2: 'Ómon', score1: null, score2: null },
-    ],
-  },
-];
+import { getScheduleWithScores, TEAM_KEY_MAP, type Match } from '@/lib/liquipedia/schedule';
 
 function TeamLogo({ team }: { team: string }) {
   const key = TEAM_KEY_MAP[team];
@@ -166,7 +49,8 @@ function MatchRow({ match }: { match: Match }) {
   );
 }
 
-export default function SchedulePage() {
+export default async function SchedulePage() {
+  const schedule = await getScheduleWithScores();
   const today = new Date().toISOString().split('T')[0];
 
   // Find the current/next round
