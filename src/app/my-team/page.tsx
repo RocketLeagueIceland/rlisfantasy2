@@ -23,7 +23,7 @@ import {
   TransferModal,
 } from '@/components/fantasy';
 import { canSwapPlayers, canMoveToEmptySlot } from '@/lib/fantasy/constraints';
-import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Week } from '@/types';
+import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Week, PointsBreakdown } from '@/types';
 import { INITIAL_BUDGET } from '@/lib/scoring/constants';
 
 interface PickerState {
@@ -50,6 +50,8 @@ export default function MyTeamPage() {
   });
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [weeklyScores, setWeeklyScores] = useState<any[]>([]);
 
   // Calculate current budget
   const calculateBudget = () => {
@@ -94,15 +96,17 @@ export default function MyTeamPage() {
       console.log('[MyTeam] Fetching data via API...');
 
       // Fetch all data in parallel via API routes
-      const [playersRes, weekRes, teamRes] = await Promise.all([
+      const [playersRes, weekRes, teamRes, scoresRes] = await Promise.all([
         fetch('/api/players'),
         fetch('/api/weeks/current'),
         fetch('/api/fantasy-teams'),
+        fetch('/api/fantasy-teams/scores'),
       ]);
 
       const playersData = await playersRes.json();
       const weekData = await weekRes.json();
       const teamData = await teamRes.json();
+      const scoresData = await scoresRes.json();
 
       console.log('[MyTeam] Players:', playersData.players?.length);
       console.log('[MyTeam] Week:', weekData.week);
@@ -110,6 +114,7 @@ export default function MyTeamPage() {
 
       setAllPlayers(playersData.players || []);
       setCurrentWeek(weekData.week);
+      setWeeklyScores(scoresData.scores || []);
 
       if (teamData.team) {
         setTeam(teamData.team);
@@ -638,17 +643,66 @@ export default function MyTeamPage() {
             </Card>
           )}
 
-          {/* Points this week (if team exists) */}
+          {/* Points history (if team exists) */}
           {team && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Points This Week</CardTitle>
+                <CardTitle className="text-sm">Points History</CardTitle>
+                <CardDescription>Weekly performance</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">-</div>
-                <p className="text-xs text-muted-foreground">
-                  Week {currentWeek?.week_number || '-'}
-                </p>
+                {weeklyScores.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {weeklyScores.map((score: any) => {
+                      const week = score.weeks as { week_number: number };
+                      const breakdown = score.breakdown as PointsBreakdown[];
+
+                      return (
+                        <div key={score.id} className="border rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">Week {week.week_number}</span>
+                            <span className="text-lg font-bold">
+                              {new Intl.NumberFormat('is-IS').format(score.total_points)} pts
+                            </span>
+                          </div>
+                          {breakdown && breakdown.length > 0 && (
+                            <div className="space-y-0">
+                              {breakdown.map((player) => (
+                                <div key={player.player_id} className="border-b last:border-0 pb-2 mb-2 last:mb-0 last:pb-0">
+                                  <div className="flex justify-between items-center">
+                                    <span className="flex items-center gap-2">
+                                      <span className="text-xs font-medium bg-primary/20 px-1.5 py-0.5 rounded">
+                                        {player.role.charAt(0).toUpperCase()}
+                                      </span>
+                                      <span className="font-medium text-foreground">{player.player_name}</span>
+                                    </span>
+                                    <span className="font-bold text-foreground">{player.total_points} pts</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {player.games_used} games • {player.stats.goals}G, {player.stats.assists}A, {player.stats.saves}S, {player.stats.shots}SH{player.stats.demos_received > 0 && `, -${player.stats.demos_received}D`}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Base: {player.base_points} + Bonus: {player.role_bonus} = {player.base_points + player.role_bonus}{player.games_used > 0 && ` ÷ ${player.games_used} = ${player.total_points} avg`}
+                                  </div>
+                                  {player.substitutions?.map((sub) => (
+                                    <div key={sub.sub_player_id} className="text-xs text-yellow-500 mt-1">
+                                      ⚡ {sub.sub_player_name} filled in ({sub.games_filled} games)
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    No scores yet
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
