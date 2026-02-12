@@ -210,6 +210,17 @@ export default function MyTeamPage() {
     handleSaveTeam();
   };
 
+  // Cancel editing the team name and revert to the saved value
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    if (team) {
+      setTeamName(team.name);
+    } else {
+      // If creating a new team, clear the editing field
+      setTeamName('');
+    }
+  };
+
   const handleSaveTeam = async () => {
     setConfirmSaveOpen(false);
     setSaving(true);
@@ -537,6 +548,11 @@ export default function MyTeamPage() {
               Transfer
             </Button>
           )}
+          {team && isEditingName && (
+            <Button variant="ghost" onClick={handleCancelEditName} disabled={saving}>
+              Cancel
+            </Button>
+          )}
           {(!team || isEditingName) && (
             <Button onClick={handleSaveClick} disabled={saving || !isTeamComplete}>
               <Save className="mr-2 h-4 w-4" />
@@ -557,6 +573,11 @@ export default function MyTeamPage() {
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="Enter team name..."
                   className="max-w-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      handleCancelEditName();
+                    }
+                  }}
                 />
               ) : (
                 <>

@@ -11,7 +11,13 @@
       "Bash(git commit:*)",
       "Bash(npx tsc --noEmit)",
       "Bash(npx tsc:*)",
-      "WebFetch(domain:ballchasing.com)"
+      "WebFetch(domain:ballchasing.com)",
+      "Bash(npx eslint:*)",
+      "Bash(git diff:*)",
+      "Bash(npm run lint)",
+      "Bash(npx next build:*)",
+      "WebFetch(domain:liquipedia.net)",
+      "WebSearch"
     ]
   }
 }
