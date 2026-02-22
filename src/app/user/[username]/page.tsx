@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { FieldVisualization } from '@/components/fantasy';
+import { isSafeUrl } from '@/lib/utils';
 import type { FantasyTeamPlayer, PointsBreakdown } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -68,7 +69,7 @@ export default async function UserProfilePage({ params }: Props) {
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatar_url || ''} />
+              <AvatarImage src={isSafeUrl(user.avatar_url)} />
               <AvatarFallback className="text-2xl">
                 {user.username.charAt(0).toUpperCase()}
               </AvatarFallback>

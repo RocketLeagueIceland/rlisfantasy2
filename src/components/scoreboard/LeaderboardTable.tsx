@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, isSafeUrl } from '@/lib/utils';
 import type { ScoreboardEntry } from '@/types';
 
 interface LeaderboardTableProps {
@@ -81,7 +81,7 @@ export function LeaderboardTable({
                 className="flex items-center gap-3 hover:underline"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={entry.avatar_url || ''} />
+                  <AvatarImage src={isSafeUrl(entry.avatar_url)} />
                   <AvatarFallback>
                     {entry.username.charAt(0).toUpperCase()}
                   </AvatarFallback>
