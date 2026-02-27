@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LeaderboardTable } from '@/components/scoreboard/LeaderboardTable';
@@ -7,7 +7,7 @@ import type { ScoreboardEntry } from '@/types';
 export const dynamic = 'force-dynamic';
 
 async function getScoreboard(): Promise<ScoreboardEntry[]> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Fetch teams with users
   const { data: teams } = await supabase

@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 // Mock client for build time when env vars aren't available
@@ -61,7 +61,7 @@ export async function createClient() {
   );
 }
 
-export async function createServiceClient() {
+export function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -69,26 +69,5 @@ export async function createServiceClient() {
     return createMockClient();
   }
 
-  const cookieStore = await cookies();
-
-  return createServerClient(
-    supabaseUrl,
-    serviceKey,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignored in Server Components
-          }
-        },
-      },
-    }
-  );
+  return createSupabaseClient(supabaseUrl, serviceKey);
 }

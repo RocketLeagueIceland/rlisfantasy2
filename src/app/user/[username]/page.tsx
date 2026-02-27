@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ interface Props {
 
 export default async function UserProfilePage({ params }: Props) {
   const { username } = await params;
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Fetch user
   const { data: user } = await supabase

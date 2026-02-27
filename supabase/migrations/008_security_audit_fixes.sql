@@ -52,7 +52,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  IF NOT (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
+  -- auth.uid() is NULL for anon users; COALESCE ensures we reject them
+  IF COALESCE(
+    (SELECT is_admin FROM public.users WHERE id = auth.uid()),
+    false
+  ) != true THEN
     RAISE EXCEPTION 'Only admins can change admin status';
   END IF;
 

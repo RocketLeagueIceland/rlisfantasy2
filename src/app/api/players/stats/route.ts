@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { BASE_POINTS } from '@/lib/scoring/constants';
 
@@ -29,7 +29,7 @@ interface PlayerWithStats {
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
 
     // Fetch all active players
     const { data: players, error: playersError } = await supabase
