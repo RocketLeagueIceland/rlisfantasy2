@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Trophy, Medal } from 'lucide-react';
+import { Trophy, Medal, ArrowUp, ArrowDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Table,
@@ -14,6 +15,8 @@ import {
 import { cn, isSafeUrl } from '@/lib/utils';
 import type { ScoreboardEntry } from '@/types';
 
+type SortColumn = 'total' | number;
+
 interface LeaderboardTableProps {
   entries: ScoreboardEntry[];
   showWeeklyBreakdown?: boolean;
@@ -23,6 +26,26 @@ export function LeaderboardTable({
   entries,
   showWeeklyBreakdown = false,
 }: LeaderboardTableProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn>('total');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) return null;
+    return sortDirection === 'desc' ? (
+      <ArrowDown className="h-3 w-3 inline ml-1" />
+    ) : (
+      <ArrowUp className="h-3 w-3 inline ml-1" />
+    );
+  };
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -47,23 +70,57 @@ export function LeaderboardTable({
       )
     : [];
 
+  const sortedEntries = useMemo(() => {
+    if (sortColumn === 'total' && sortDirection === 'desc') {
+      return entries;
+    }
+
+    const sorted = [...entries].sort((a, b) => {
+      let aVal: number;
+      let bVal: number;
+
+      if (sortColumn === 'total') {
+        aVal = a.total_points;
+        bVal = b.total_points;
+      } else {
+        aVal = a.weekly_points.find((w) => w.week_number === sortColumn)?.points ?? 0;
+        bVal = b.weekly_points.find((w) => w.week_number === sortColumn)?.points ?? 0;
+      }
+
+      return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+
+    return sorted.map((entry, i) => ({ ...entry, rank: i + 1 }));
+  }, [entries, sortColumn, sortDirection]);
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-16">Rank</TableHead>
           <TableHead>Team</TableHead>
-          <TableHead className="text-right">Total Points</TableHead>
+          <TableHead
+            className="text-right cursor-pointer hover:text-foreground select-none"
+            onClick={() => handleSort('total')}
+          >
+            Total Points
+            <SortIcon column="total" />
+          </TableHead>
           {showWeeklyBreakdown &&
             allWeeks.map((week) => (
-              <TableHead key={week} className="text-right w-20">
+              <TableHead
+                key={week}
+                className="text-right w-20 cursor-pointer hover:text-foreground select-none"
+                onClick={() => handleSort(week)}
+              >
                 W{week}
+                <SortIcon column={week} />
               </TableHead>
             ))}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {entries.map((entry) => (
+        {sortedEntries.map((entry) => (
           <TableRow
             key={entry.user_id}
             className={cn(
