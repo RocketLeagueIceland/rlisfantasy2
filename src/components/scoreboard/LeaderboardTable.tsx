@@ -100,7 +100,10 @@ export function LeaderboardTable({
           <TableHead className="w-16">Rank</TableHead>
           <TableHead>Team</TableHead>
           <TableHead
-            className="text-right cursor-pointer hover:text-foreground select-none"
+            className={cn(
+              "text-right cursor-pointer hover:text-foreground select-none",
+              sortColumn === 'total' && "bg-muted/60"
+            )}
             onClick={() => handleSort('total')}
           >
             Total Points
@@ -110,7 +113,10 @@ export function LeaderboardTable({
             allWeeks.map((week) => (
               <TableHead
                 key={week}
-                className="text-right w-20 cursor-pointer hover:text-foreground select-none"
+                className={cn(
+                  "text-right w-20 cursor-pointer hover:text-foreground select-none",
+                  sortColumn === week && "bg-muted/60"
+                )}
                 onClick={() => handleSort(week)}
               >
                 W{week}
@@ -151,7 +157,10 @@ export function LeaderboardTable({
                 </div>
               </Link>
             </TableCell>
-            <TableCell className="text-right font-bold text-lg">
+            <TableCell className={cn(
+              "text-right font-bold text-lg",
+              sortColumn === 'total' && "bg-muted/40"
+            )}>
               {formatPoints(entry.total_points)}
             </TableCell>
             {showWeeklyBreakdown &&
@@ -160,7 +169,10 @@ export function LeaderboardTable({
                   (w) => w.week_number === week
                 );
                 return (
-                  <TableCell key={week} className="text-right text-sm">
+                  <TableCell key={week} className={cn(
+                    "text-right text-sm",
+                    sortColumn === week && "bg-muted/40"
+                  )}>
                     {weekPoints ? formatPoints(weekPoints.points) : '-'}
                   </TableCell>
                 );
