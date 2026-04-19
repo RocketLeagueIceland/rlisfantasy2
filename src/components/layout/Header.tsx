@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, User, LogOut, Shield, Heart, Calendar, type LucideIcon } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, Heart, Calendar, Trophy, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ const navLinks: { href: string; label: string; icon?: LucideIcon }[] = [
   { href: '/scoreboard', label: 'Scoreboard' },
   { href: '/players', label: 'Players' },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
+  { href: '/predictions', label: 'Predictions', icon: Trophy },
   { href: '/rules', label: 'Rules' },
   { href: '/my-team', label: 'My Team' },
   { href: '/donate', label: 'Donate', icon: Heart },
