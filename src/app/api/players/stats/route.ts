@@ -63,7 +63,12 @@ export async function GET() {
       return NextResponse.json({ players: [], error: ownershipError.message }, { status: 500 });
     }
 
-    // Aggregate stats by player
+    // Aggregate stats by player.
+    // Raw totals are summed across all weeks for display.
+    // Points are computed per-series (per-week): each week's stat points are
+    // averaged by that week's games_played, then summed across weeks. This
+    // matches the fantasy scoring rule: "Points are averaged across the games
+    // played in each Bo5 series."
     const statsMap = new Map<string, {
       goals: number;
       assists: number;
@@ -71,19 +76,38 @@ export async function GET() {
       shots: number;
       demos: number;
       games: number;
+      points_goals: number;
+      points_assists: number;
+      points_saves: number;
+      points_shots: number;
+      points_demos: number;
     }>();
 
     for (const stat of statsData || []) {
       const existing = statsMap.get(stat.rl_player_id) || {
-        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0
+        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0,
+        points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
       };
+
+      const gp = stat.games_played || 0;
+      const weekGoals = stat.total_goals || 0;
+      const weekAssists = stat.total_assists || 0;
+      const weekSaves = stat.total_saves || 0;
+      const weekShots = stat.total_shots || 0;
+      const weekDemos = stat.total_demos_received || 0;
+
       statsMap.set(stat.rl_player_id, {
-        goals: existing.goals + (stat.total_goals || 0),
-        assists: existing.assists + (stat.total_assists || 0),
-        saves: existing.saves + (stat.total_saves || 0),
-        shots: existing.shots + (stat.total_shots || 0),
-        demos: existing.demos + (stat.total_demos_received || 0),
-        games: existing.games + (stat.games_played || 0),
+        goals: existing.goals + weekGoals,
+        assists: existing.assists + weekAssists,
+        saves: existing.saves + weekSaves,
+        shots: existing.shots + weekShots,
+        demos: existing.demos + weekDemos,
+        games: existing.games + gp,
+        points_goals: existing.points_goals + (gp > 0 ? (weekGoals * BASE_POINTS.goal) / gp : 0),
+        points_assists: existing.points_assists + (gp > 0 ? (weekAssists * BASE_POINTS.assist) / gp : 0),
+        points_saves: existing.points_saves + (gp > 0 ? (weekSaves * BASE_POINTS.save) / gp : 0),
+        points_shots: existing.points_shots + (gp > 0 ? (weekShots * BASE_POINTS.shot) / gp : 0),
+        points_demos: existing.points_demos + (gp > 0 ? (weekDemos * BASE_POINTS.demo_received) / gp : 0),
       });
     }
 
@@ -99,14 +123,15 @@ export async function GET() {
     // Build response with calculated points
     const playersWithStats: PlayerWithStats[] = (players || []).map(player => {
       const stats = statsMap.get(player.id) || {
-        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0
+        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0,
+        points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
       };
 
-      const points_goals = stats.goals * BASE_POINTS.goal;
-      const points_assists = stats.assists * BASE_POINTS.assist;
-      const points_saves = stats.saves * BASE_POINTS.save;
-      const points_shots = stats.shots * BASE_POINTS.shot;
-      const points_demos = stats.demos * BASE_POINTS.demo_received;
+      const points_goals = Math.round(stats.points_goals);
+      const points_assists = Math.round(stats.points_assists);
+      const points_saves = Math.round(stats.points_saves);
+      const points_shots = Math.round(stats.points_shots);
+      const points_demos = Math.round(stats.points_demos);
       const total_points = points_goals + points_assists + points_saves + points_shots + points_demos;
 
       return {
