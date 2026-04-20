@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -11,8 +11,6 @@ import { PredictionBracket } from './PredictionBracket';
 import { PredictionConfirmDialog } from './PredictionConfirmDialog';
 import {
   bracketFormSchema,
-  deriveSf1Winner,
-  deriveSf2Winner,
   previewPrediction,
   toPredictionSubmission,
   type BracketFormValues,
@@ -28,33 +26,9 @@ export function PredictionForm() {
     mode: 'onChange',
     defaultValues: {},
   });
-  const { watch, setValue, handleSubmit } = methods;
+  const { watch, handleSubmit } = methods;
 
   const values = watch();
-
-  // Cascading: when a semifinal winner flips (including becoming
-  // undetermined), the downstream slots for that side now represent a
-  // different team, so clear their scores to avoid carrying stale intent.
-  const sf1Winner = deriveSf1Winner(values);
-  const sf2Winner = deriveSf2Winner(values);
-  const prevSf1Winner = useRef(sf1Winner);
-  const prevSf2Winner = useRef(sf2Winner);
-
-  useEffect(() => {
-    if (prevSf1Winner.current !== sf1Winner) {
-      setValue('gf_a', undefined as never);
-      setValue('third_a', undefined as never);
-      prevSf1Winner.current = sf1Winner;
-    }
-  }, [sf1Winner, setValue]);
-
-  useEffect(() => {
-    if (prevSf2Winner.current !== sf2Winner) {
-      setValue('gf_b', undefined as never);
-      setValue('third_b', undefined as never);
-      prevSf2Winner.current = sf2Winner;
-    }
-  }, [sf2Winner, setValue]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);

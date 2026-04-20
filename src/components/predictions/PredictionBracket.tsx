@@ -28,6 +28,10 @@ export function PredictionBracket(props: BracketProps) {
   return <FormBracket />;
 }
 
+// ---------------------------------------------------------------------------
+// View mode
+// ---------------------------------------------------------------------------
+
 function ViewBracket({
   prediction,
   highlight,
@@ -41,48 +45,62 @@ function ViewBracket({
   return (
     <div
       className={
-        'grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2 ' +
+        'space-y-6 ' +
         (highlight ? 'rounded-lg p-2 ring-2 ring-primary/60' : '')
       }
     >
-      <BracketColumn>
-        <Banner>Semifinals</Banner>
-        <SfPairWithConnectors>
-          <ViewSeriesBox
-            teamA="thor"
-            teamB="stjarnan"
-            winner={prediction.sf1_winner}
-            score={prediction.sf1_score}
-          />
-          <ViewSeriesBox
-            teamA="354esports"
-            teamB="dusty"
-            winner={prediction.sf2_winner}
-            score={prediction.sf2_score}
-          />
-        </SfPairWithConnectors>
-      </BracketColumn>
+      {/* Top half: Semifinals + Grand Final, vertically aligned via flex center */}
+      <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
+        <BracketColumn>
+          <Banner>Semifinals</Banner>
+          <SfPairWithConnectors>
+            <ViewSeriesBox
+              teamA="thor"
+              teamB="stjarnan"
+              winner={prediction.sf1_winner}
+              score={prediction.sf1_score}
+            />
+            <ViewSeriesBox
+              teamA="354esports"
+              teamB="dusty"
+              winner={prediction.sf2_winner}
+              score={prediction.sf2_score}
+            />
+          </SfPairWithConnectors>
+        </BracketColumn>
 
-      <BracketColumn>
-        <Banner>Grand Final</Banner>
-        <ViewSeriesBox
-          teamA={prediction.sf1_winner}
-          teamB={prediction.sf2_winner}
-          winner={prediction.gf_winner}
-          score={prediction.gf_score}
-          accent
-        />
-        <Banner>Third Place Match</Banner>
-        <ViewSeriesBox
-          teamA={sf1Loser!}
-          teamB={sf2Loser!}
-          winner={prediction.third_winner}
-          score={prediction.third_score}
-        />
-      </BracketColumn>
+        <CenteredColumn>
+          <Banner>Grand Final</Banner>
+          <ViewSeriesBox
+            teamA={prediction.sf1_winner}
+            teamB={prediction.sf2_winner}
+            winner={prediction.gf_winner}
+            score={prediction.gf_score}
+            accent
+          />
+        </CenteredColumn>
+      </div>
+
+      {/* Bottom half: Third Place Match on the right only */}
+      <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
+        <div className="hidden md:block" />
+        <BracketColumn>
+          <Banner>Third Place Match</Banner>
+          <ViewSeriesBox
+            teamA={sf1Loser!}
+            teamB={sf2Loser!}
+            winner={prediction.third_winner}
+            score={prediction.third_score}
+          />
+        </BracketColumn>
+      </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Form mode
+// ---------------------------------------------------------------------------
 
 function FormBracket() {
   const { watch } = useFormContext<BracketFormValues>();
@@ -93,84 +111,109 @@ function FormBracket() {
   const sf2Loser = getSf2Loser(sf2Winner);
 
   return (
-    <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
-      <BracketColumn>
-        <Banner>Semifinals</Banner>
-        <SfPairWithConnectors>
-          <FormSeriesBox
-            teamA="thor"
-            teamB="stjarnan"
-            fieldA="sf1_a"
-            fieldB="sf1_b"
-          />
-          <FormSeriesBox
-            teamA="354esports"
-            teamB="dusty"
-            fieldA="sf2_a"
-            fieldB="sf2_b"
-          />
-        </SfPairWithConnectors>
-      </BracketColumn>
+    <div className="space-y-6">
+      {/* Top half: Semifinals + Grand Final */}
+      <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
+        <BracketColumn>
+          <Banner>Semifinals</Banner>
+          <SfPairWithConnectors>
+            <FormSeriesBox
+              teamA="thor"
+              teamB="stjarnan"
+              fieldA="sf1_a"
+              fieldB="sf1_b"
+            />
+            <FormSeriesBox
+              teamA="354esports"
+              teamB="dusty"
+              fieldA="sf2_a"
+              fieldB="sf2_b"
+            />
+          </SfPairWithConnectors>
+        </BracketColumn>
 
-      <BracketColumn>
-        <Banner>Grand Final</Banner>
-        <FormSeriesBox
-          teamA={sf1Winner}
-          teamB={sf2Winner}
-          fieldA="gf_a"
-          fieldB="gf_b"
-          placeholder="Waiting for semifinal winners"
-          accent
-        />
-        <Banner>Third Place Match</Banner>
-        <FormSeriesBox
-          teamA={sf1Loser}
-          teamB={sf2Loser}
-          fieldA="third_a"
-          fieldB="third_b"
-          placeholder="Waiting for semifinal losers"
-        />
-      </BracketColumn>
+        <CenteredColumn>
+          <Banner>Grand Final</Banner>
+          <FormSeriesBox
+            teamA={sf1Winner}
+            teamB={sf2Winner}
+            fieldA="gf_a"
+            fieldB="gf_b"
+            accent
+          />
+        </CenteredColumn>
+      </div>
+
+      {/* Bottom half: Third Place Match on the right only */}
+      <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
+        <div className="hidden md:block" />
+        <BracketColumn>
+          <Banner>Third Place Match</Banner>
+          <FormSeriesBox
+            teamA={sf1Loser}
+            teamB={sf2Loser}
+            fieldA="third_a"
+            fieldB="third_b"
+          />
+        </BracketColumn>
+      </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Layout primitives
+// ---------------------------------------------------------------------------
 
 function BracketColumn({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-3">{children}</div>;
 }
 
 /**
- * Wraps exactly two semifinal boxes (children[0] and children[1]) and draws
- * bracket connector lines that merge them into a single point on the right,
- * then extend a short line toward the Grand Final column. Only visible at
- * the md+ breakpoint where the bracket renders as two columns.
+ * Right-column wrapper that vertically centers its contents (banner + series
+ * box) within the grid row. This is what makes the GF series box sit at the
+ * same y-coordinate as the midpoint of the SF pair on the left, so the
+ * bracket connector lines end exactly at the GF box's vertical centre.
  */
-function SfPairWithConnectors({ children }: { children: React.ReactNode }) {
+function CenteredColumn({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex flex-col gap-3">
-      {/* Top half of the bracket: horizontal out from SF1 midpoint, then down. */}
-      <div
-        className="pointer-events-none absolute top-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-t border-r border-border md:block"
-        aria-hidden
-      />
-      {/* Bottom half of the bracket: horizontal out from SF2 midpoint, then up. */}
-      <div
-        className="pointer-events-none absolute bottom-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-b border-r border-border md:block"
-        aria-hidden
-      />
-      {/* Extension from the merge point toward the Grand Final. */}
-      <div
-        className="pointer-events-none absolute top-1/2 left-full hidden h-px w-12 translate-x-6 bg-border md:block"
-        aria-hidden
-      />
-      {children}
-    </div>
+    <div className="flex flex-col justify-center gap-3">{children}</div>
   );
 }
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-md bg-muted/60 px-4 py-2 text-center text-sm font-semibold tracking-wide text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Wraps the two semifinal series boxes and draws the bracket connector:
+ *   - right-then-down line from SF1's midpoint
+ *   - right-then-up line from SF2's midpoint
+ *   - a horizontal extension from the merge point toward the Grand Final
+ * Lines only render at md+ where the bracket becomes two columns.
+ */
+function SfPairWithConnectors({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative flex flex-col gap-3">
+      {/* SF1 → merge (right, then down) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-t border-r border-border md:block"
+      />
+      {/* SF2 → merge (right, then up) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-b border-r border-border md:block"
+      />
+      {/* Merge point → Grand Final (horizontal) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-full hidden h-px w-12 translate-x-6 bg-border md:block"
+      />
       {children}
     </div>
   );
@@ -194,6 +237,10 @@ function SeriesBoxShell({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// View-mode series box + team row
+// ---------------------------------------------------------------------------
 
 function ViewSeriesBox({
   teamA,
@@ -240,13 +287,7 @@ function StaticTeamRow({
         (isWinner ? 'bg-primary/10' : '')
       }
     >
-      <Image
-        src={`/Teams/${team}.png`}
-        alt={RL_TEAM_NAMES[team]}
-        width={28}
-        height={28}
-        className="shrink-0 rounded"
-      />
+      <TeamLogo team={team} />
       <span
         className={
           'flex-1 truncate text-sm ' +
@@ -269,19 +310,21 @@ function StaticTeamRow({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Form-mode series box + team row
+// ---------------------------------------------------------------------------
+
 function FormSeriesBox({
   teamA,
   teamB,
   fieldA,
   fieldB,
-  placeholder,
   accent,
 }: {
   teamA: PlayoffTeam | undefined;
   teamB: PlayoffTeam | undefined;
   fieldA: keyof BracketFormValues;
   fieldB: keyof BracketFormValues;
-  placeholder?: string;
   accent?: boolean;
 }) {
   const { watch } = useFormContext<BracketFormValues>();
@@ -289,16 +332,6 @@ function FormSeriesBox({
   const gamesB = watch(fieldB);
   const aWins = gamesA === GAMES_TO_WIN && gamesB !== GAMES_TO_WIN;
   const bWins = gamesB === GAMES_TO_WIN && gamesA !== GAMES_TO_WIN;
-
-  if (!teamA || !teamB) {
-    return (
-      <SeriesBoxShell accent={accent}>
-        <div className="px-3 py-6 text-center text-xs italic text-muted-foreground">
-          {placeholder ?? 'Waiting for earlier picks…'}
-        </div>
-      </SeriesBoxShell>
-    );
-  }
 
   return (
     <SeriesBoxShell accent={accent}>
@@ -314,12 +347,13 @@ function EditableTeamRow({
   fieldName,
   isWinner,
 }: {
-  team: PlayoffTeam;
+  team: PlayoffTeam | undefined;
   fieldName: keyof BracketFormValues;
   isWinner: boolean;
 }) {
   const { setValue, watch } = useFormContext<BracketFormValues>();
   const current = watch(fieldName);
+  const label = team ? RL_TEAM_NAMES[team] : 'TBD';
 
   return (
     <div
@@ -328,20 +362,18 @@ function EditableTeamRow({
         (isWinner ? 'bg-primary/10' : '')
       }
     >
-      <Image
-        src={`/Teams/${team}.png`}
-        alt={RL_TEAM_NAMES[team]}
-        width={28}
-        height={28}
-        className="shrink-0 rounded"
-      />
+      <TeamLogo team={team} />
       <span
         className={
           'flex-1 truncate text-sm ' +
-          (isWinner ? 'font-semibold text-foreground' : 'text-muted-foreground')
+          (team
+            ? isWinner
+              ? 'font-semibold text-foreground'
+              : 'text-muted-foreground'
+            : 'italic text-muted-foreground')
         }
       >
-        {RL_TEAM_NAMES[team]}
+        {label}
       </span>
       <input
         type="number"
@@ -349,7 +381,7 @@ function EditableTeamRow({
         max={4}
         step={1}
         inputMode="numeric"
-        aria-label={`${RL_TEAM_NAMES[team]} games won`}
+        aria-label={`${label} games won`}
         value={current ?? ''}
         onChange={(e) => {
           const raw = e.target.value;
@@ -377,5 +409,25 @@ function EditableTeamRow({
         }
       />
     </div>
+  );
+}
+
+function TeamLogo({ team }: { team: PlayoffTeam | undefined }) {
+  if (!team) {
+    return (
+      <div
+        aria-hidden
+        className="h-7 w-7 shrink-0 rounded border border-dashed border-border bg-muted/40"
+      />
+    );
+  }
+  return (
+    <Image
+      src={`/Teams/${team}.png`}
+      alt={RL_TEAM_NAMES[team]}
+      width={28}
+      height={28}
+      className="shrink-0 rounded"
+    />
   );
 }
