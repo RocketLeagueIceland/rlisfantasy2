@@ -11,12 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { PredictionBracket } from './PredictionBracket';
 import type { PlayoffPrediction } from '@/types/predictions';
-import type { PredictionSubmission } from '@/lib/predictions/schema';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  values: PredictionSubmission;
+  preview: PlayoffPrediction;
   submitting: boolean;
   onConfirm: () => void;
 }
@@ -24,17 +23,10 @@ interface Props {
 export function PredictionConfirmDialog({
   open,
   onOpenChange,
-  values,
+  preview,
   submitting,
   onConfirm,
 }: Props) {
-  const preview: PlayoffPrediction = {
-    id: 'preview',
-    user_id: 'preview',
-    created_at: new Date().toISOString(),
-    ...values,
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
