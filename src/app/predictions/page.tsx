@@ -40,7 +40,7 @@ export default async function PredictionsPage() {
         user:users!inner(id, username, avatar_url)
       `
     )
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
 
   const predictions: PredictionRow[] = (rawPredictions ?? []) as PredictionRow[];
 
