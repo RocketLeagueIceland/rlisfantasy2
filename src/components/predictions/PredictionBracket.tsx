@@ -41,24 +41,26 @@ function ViewBracket({
   return (
     <div
       className={
-        'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 ' +
+        'grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2 ' +
         (highlight ? 'rounded-lg p-2 ring-2 ring-primary/60' : '')
       }
     >
       <BracketColumn>
         <Banner>Semifinals</Banner>
-        <ViewSeriesBox
-          teamA="thor"
-          teamB="stjarnan"
-          winner={prediction.sf1_winner}
-          score={prediction.sf1_score}
-        />
-        <ViewSeriesBox
-          teamA="354esports"
-          teamB="dusty"
-          winner={prediction.sf2_winner}
-          score={prediction.sf2_score}
-        />
+        <SfPairWithConnectors>
+          <ViewSeriesBox
+            teamA="thor"
+            teamB="stjarnan"
+            winner={prediction.sf1_winner}
+            score={prediction.sf1_score}
+          />
+          <ViewSeriesBox
+            teamA="354esports"
+            teamB="dusty"
+            winner={prediction.sf2_winner}
+            score={prediction.sf2_score}
+          />
+        </SfPairWithConnectors>
       </BracketColumn>
 
       <BracketColumn>
@@ -91,21 +93,23 @@ function FormBracket() {
   const sf2Loser = getSf2Loser(sf2Winner);
 
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-12 gap-y-4 md:grid-cols-2">
       <BracketColumn>
         <Banner>Semifinals</Banner>
-        <FormSeriesBox
-          teamA="thor"
-          teamB="stjarnan"
-          fieldA="sf1_a"
-          fieldB="sf1_b"
-        />
-        <FormSeriesBox
-          teamA="354esports"
-          teamB="dusty"
-          fieldA="sf2_a"
-          fieldB="sf2_b"
-        />
+        <SfPairWithConnectors>
+          <FormSeriesBox
+            teamA="thor"
+            teamB="stjarnan"
+            fieldA="sf1_a"
+            fieldB="sf1_b"
+          />
+          <FormSeriesBox
+            teamA="354esports"
+            teamB="dusty"
+            fieldA="sf2_a"
+            fieldB="sf2_b"
+          />
+        </SfPairWithConnectors>
       </BracketColumn>
 
       <BracketColumn>
@@ -133,6 +137,35 @@ function FormBracket() {
 
 function BracketColumn({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-3">{children}</div>;
+}
+
+/**
+ * Wraps exactly two semifinal boxes (children[0] and children[1]) and draws
+ * bracket connector lines that merge them into a single point on the right,
+ * then extend a short line toward the Grand Final column. Only visible at
+ * the md+ breakpoint where the bracket renders as two columns.
+ */
+function SfPairWithConnectors({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative flex flex-col gap-3">
+      {/* Top half of the bracket: horizontal out from SF1 midpoint, then down. */}
+      <div
+        className="pointer-events-none absolute top-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-t border-r border-border md:block"
+        aria-hidden
+      />
+      {/* Bottom half of the bracket: horizontal out from SF2 midpoint, then up. */}
+      <div
+        className="pointer-events-none absolute bottom-[25%] left-full hidden h-[calc(25%+0.375rem)] w-6 border-b border-r border-border md:block"
+        aria-hidden
+      />
+      {/* Extension from the merge point toward the Grand Final. */}
+      <div
+        className="pointer-events-none absolute top-1/2 left-full hidden h-px w-12 translate-x-6 bg-border md:block"
+        aria-hidden
+      />
+      {children}
+    </div>
+  );
 }
 
 function Banner({ children }: { children: React.ReactNode }) {
