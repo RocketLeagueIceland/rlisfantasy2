@@ -23,6 +23,8 @@ interface PlayerWithStats {
   points_shots: number;
   points_demos: number;
   total_points: number;
+  weeks_played: number;
+  avg_points_per_week: number;
   // Ownership
   ownership_count: number;
 }
@@ -76,6 +78,7 @@ export async function GET() {
       shots: number;
       demos: number;
       games: number;
+      weeks: number;
       points_goals: number;
       points_assists: number;
       points_saves: number;
@@ -85,7 +88,7 @@ export async function GET() {
 
     for (const stat of statsData || []) {
       const existing = statsMap.get(stat.rl_player_id) || {
-        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0,
+        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0, weeks: 0,
         points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
       };
 
@@ -103,6 +106,7 @@ export async function GET() {
         shots: existing.shots + weekShots,
         demos: existing.demos + weekDemos,
         games: existing.games + gp,
+        weeks: existing.weeks + (gp > 0 ? 1 : 0),
         points_goals: existing.points_goals + (gp > 0 ? (weekGoals * BASE_POINTS.goal) / gp : 0),
         points_assists: existing.points_assists + (gp > 0 ? (weekAssists * BASE_POINTS.assist) / gp : 0),
         points_saves: existing.points_saves + (gp > 0 ? (weekSaves * BASE_POINTS.save) / gp : 0),
@@ -123,7 +127,7 @@ export async function GET() {
     // Build response with calculated points
     const playersWithStats: PlayerWithStats[] = (players || []).map(player => {
       const stats = statsMap.get(player.id) || {
-        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0,
+        goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0, weeks: 0,
         points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
       };
 
@@ -151,6 +155,8 @@ export async function GET() {
         points_shots,
         points_demos,
         total_points,
+        weeks_played: stats.weeks,
+        avg_points_per_week: stats.weeks > 0 ? Math.round((total_points / stats.weeks) * 10) / 10 : 0,
         ownership_count: ownershipMap.get(player.id) || 0,
       };
     });

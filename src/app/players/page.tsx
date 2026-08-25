@@ -23,13 +23,15 @@ interface PlayerWithStats {
   points_shots: number;
   points_demos: number;
   total_points: number;
+  weeks_played: number;
+  avg_points_per_week: number;
   ownership_count: number;
 }
 
 type SortField =
   | 'team' | 'name' | 'price'
   | 'total_goals' | 'total_assists' | 'total_saves' | 'total_shots' | 'total_demos_received'
-  | 'total_points' | 'ownership_count' | 'games_played';
+  | 'total_points' | 'avg_points_per_week' | 'ownership_count' | 'games_played';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -69,7 +71,7 @@ export default function PlayersPage() {
       // Default to descending for numeric stats (higher is better, except demos)
       const numericFields: SortField[] = [
         'total_goals', 'total_assists', 'total_saves', 'total_shots',
-        'total_points', 'ownership_count', 'games_played', 'price'
+        'total_points', 'avg_points_per_week', 'ownership_count', 'games_played', 'price'
       ];
       setSortDirection(numericFields.includes(field) ? 'desc' : 'asc');
     }
@@ -151,6 +153,7 @@ export default function PlayersPage() {
                   <SortHeader field="total_shots" label="Shots" />
                   <SortHeader field="total_demos_received" label="Demos" />
                   <SortHeader field="total_points" label="Points" />
+                  <SortHeader field="avg_points_per_week" label="Avg/Week" />
                   <SortHeader field="ownership_count" label="Owned" className="pr-4" />
                 </tr>
               </thead>
@@ -210,6 +213,9 @@ export default function PlayersPage() {
                     </td>
                     <td className="px-2 py-3 text-center font-bold text-primary">
                       {player.total_points}
+                    </td>
+                    <td className="px-2 py-3 text-center font-medium text-muted-foreground">
+                      {player.weeks_played > 0 ? player.avg_points_per_week.toFixed(1) : '-'}
                     </td>
                     <td className="px-2 py-3 pr-4 text-center">
                       <div className="flex items-center justify-center gap-1 text-muted-foreground">
