@@ -313,10 +313,10 @@ export default async function RulesPage() {
             {[
               { id: '354esports', name: '354 Esports' },
               { id: 'dusty', name: 'Dusty' },
+              { id: 'flux', name: 'Flux' },
               { id: 'hamar', name: 'Hamar' },
               { id: 'omon', name: 'Ómon' },
               { id: 'thor', name: 'Thor' },
-              { id: 'stjarnan', name: 'Stjarnan' },
             ].map((team) => (
               <div
                 key={team.id}

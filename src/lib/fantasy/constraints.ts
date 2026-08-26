@@ -129,6 +129,7 @@ function formatTeamName(team: RLTeam): string {
   const names: Record<RLTeam, string> = {
     '354esports': '354 Esports',
     dusty: 'Dusty',
+    flux: 'Flux',
     hamar: 'Hamar',
     omon: 'Omon',
     thor: 'Thor',

@@ -1,4 +1,5 @@
-export type RLTeam = '354esports' | 'dusty' | 'hamar' | 'omon' | 'thor' | 'stjarnan';
+// 'stjarnan' is Season 11 history; 'flux' joined in Season 12
+export type RLTeam = '354esports' | 'dusty' | 'hamar' | 'omon' | 'thor' | 'stjarnan' | 'flux';
 
 export interface Season {
   id: string;

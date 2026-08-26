@@ -6,6 +6,7 @@ const TEAM_NAME_MAP: Record<string, string> = {
   '354 esports': '354 Esports',
   stjarnan: 'Stjarnan',
   hamar: 'Hamar',
+  flux: 'Flux',
 };
 
 export const TEAM_KEY_MAP: Record<string, string> = {
@@ -15,6 +16,7 @@ export const TEAM_KEY_MAP: Record<string, string> = {
   '354 Esports': '354esports',
   Hamar: 'hamar',
   Stjarnan: 'stjarnan',
+  Flux: 'flux',
 };
 
 export interface Match {

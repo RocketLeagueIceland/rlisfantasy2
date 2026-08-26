@@ -47,20 +47,22 @@ export const TEAM_SIZE = {
   substitutes: 3,
 } as const;
 
-// RL Teams
+// RL Teams competing in the CURRENT season (drives player pickers and the
+// admin team select). Past-season teams stay in RL_TEAM_NAMES for display.
 export const RL_TEAMS = [
   '354esports',
   'dusty',
+  'flux',
   'hamar',
   'omon',
   'thor',
-  'stjarnan',
 ] as const;
 
-// Team display names (for UI)
+// Team display names (for UI) — includes past seasons' teams
 export const RL_TEAM_NAMES: Record<string, string> = {
   '354esports': '354 Esports',
   'dusty': 'Dusty',
+  'flux': 'Flux',
   'hamar': 'Hamar',
   'omon': 'Ómon',
   'thor': 'Thor',
