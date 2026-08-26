@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSeason, getCurrentWeek } from '@/lib/seasons';
+import { getCurrentSeason, getCurrentWeek, isPreSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 import { validateTeamConstraints } from '@/lib/fantasy/constraints';
 import type { RLPlayer, SlotType } from '@/types';
@@ -164,6 +164,148 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ team: newTeam });
+  } catch (e) {
+    console.error('Unexpected error:', e);
+    return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });
+  }
+}
+
+// PUT - Replace the whole roster. Pre-season only: until the first week's
+// lock (deadline/broadcast/stats), nothing has happened that a roster choice
+// could be based on, so saved teams may be re-edited without limit.
+export async function PUT(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const season = await getCurrentSeason(supabase);
+    if (!season) {
+      return NextResponse.json({ error: 'No active season' }, { status: 400 });
+    }
+
+    if (!(await isPreSeason(supabase, season.id))) {
+      return NextResponse.json(
+        { error: 'Roster editing is locked once the season starts — use transfers instead' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { teamId, name, players } = body;
+
+    if (!Array.isArray(players) || players.length !== 6) {
+      return NextResponse.json({ error: 'A team must have exactly 6 players' }, { status: 400 });
+    }
+
+    // Verify the user owns the team and it belongs to the current season
+    const { data: team } = await supabase
+      .from('fantasy_teams')
+      .select('id')
+      .eq('id', teamId)
+      .eq('user_id', authUser.id)
+      .eq('season_id', season.id)
+      .maybeSingle();
+
+    if (!team) {
+      return NextResponse.json({ error: 'Team not found or not owned by user' }, { status: 403 });
+    }
+
+    // Validate players and resolve prices server-side (same as team creation)
+    const playerIds = players.map((p: { rl_player_id: string }) => p.rl_player_id);
+    const { data: rlPlayers, error: rlPlayersError } = await supabase
+      .from('rl_players')
+      .select('*')
+      .in('id', playerIds)
+      .eq('season_id', season.id)
+      .eq('is_active', true);
+
+    if (rlPlayersError) {
+      console.error('Error fetching RL players:', rlPlayersError);
+      return NextResponse.json({ error: 'Failed to validate players' }, { status: 500 });
+    }
+
+    if (!rlPlayers || rlPlayers.length !== playerIds.length) {
+      return NextResponse.json(
+        { error: 'One or more players are not available this season' },
+        { status: 400 }
+      );
+    }
+
+    const teamPlayersForValidation = players.map((p: {
+      rl_player_id: string;
+      slot_type: SlotType;
+    }) => ({
+      slot_type: p.slot_type,
+      rl_player: rlPlayers.find((rp: RLPlayer) => rp.id === p.rl_player_id),
+    }));
+
+    const constraintResult = validateTeamConstraints(teamPlayersForValidation);
+    if (!constraintResult.valid) {
+      return NextResponse.json({ error: constraintResult.reason }, { status: 400 });
+    }
+
+    const priceById = new Map<string, number>(rlPlayers.map((rp: RLPlayer) => [rp.id, rp.price]));
+    const totalCost = playerIds.reduce((sum: number, id: string) => sum + (priceById.get(id) || 0), 0);
+    const budgetRemaining = season.initial_budget - totalCost;
+
+    if (budgetRemaining < 0) {
+      return NextResponse.json({ error: 'Team exceeds the season budget' }, { status: 400 });
+    }
+
+    // Replace the roster
+    const { error: deleteError } = await supabase
+      .from('fantasy_team_players')
+      .delete()
+      .eq('fantasy_team_id', teamId);
+
+    if (deleteError) {
+      console.error('Error clearing team players:', deleteError);
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    const playersToInsert = players.map((p: {
+      rl_player_id: string;
+      slot_type: string;
+      role: string | null;
+      sub_order: number | null;
+    }) => ({
+      fantasy_team_id: teamId,
+      rl_player_id: p.rl_player_id,
+      slot_type: p.slot_type,
+      role: p.role,
+      sub_order: p.sub_order,
+      purchase_price: priceById.get(p.rl_player_id) || 0,
+    }));
+
+    const { error: playersError } = await supabase
+      .from('fantasy_team_players')
+      .insert(playersToInsert);
+
+    if (playersError) {
+      console.error('Error inserting team players:', playersError);
+      return NextResponse.json({ error: playersError.message }, { status: 500 });
+    }
+
+    const { data: updatedTeam, error: updateError } = await supabase
+      .from('fantasy_teams')
+      .update({
+        ...(typeof name === 'string' && name.trim() ? { name: name.trim() } : {}),
+        budget_remaining: budgetRemaining,
+      })
+      .eq('id', teamId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating team:', updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ team: updatedTeam });
   } catch (e) {
     console.error('Unexpected error:', e);
     return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });

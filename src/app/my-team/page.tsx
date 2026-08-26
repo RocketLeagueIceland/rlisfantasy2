@@ -43,6 +43,7 @@ export default function MyTeamPage() {
   const [allPlayers, setAllPlayers] = useState<RLPlayer[]>([]);
   const [currentWeek, setCurrentWeek] = useState<Week | null>(null);
   const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
+  const [preSeason, setPreSeason] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [pickerState, setPickerState] = useState<PickerState>({
@@ -61,13 +62,28 @@ export default function MyTeamPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Unsaved pre-season roster edits: replaced players get temp ids, removals
+  // drop below 6. While dirty, swaps/moves stay local and Save does a full
+  // roster replace.
+  const rosterDirty =
+    !!team && (teamPlayers.length < 6 || teamPlayers.some((p) => p.id.startsWith('temp-')));
+
   // Calculate current budget (the server recomputes this on save)
   const calculateBudget = () => {
-    if (team) {
+    if (team && !rosterDirty) {
       return team.budget_remaining;
     }
+    const initial = currentSeason?.initial_budget ?? INITIAL_BUDGET;
+    if (rosterDirty) {
+      // Editing a saved roster pre-season: price everything at current market
+      const spent = teamPlayers.reduce(
+        (sum, p) => sum + (p.rl_player?.price ?? p.purchase_price),
+        0
+      );
+      return initial - spent;
+    }
     const spent = teamPlayers.reduce((sum, p) => sum + p.purchase_price, 0);
-    return (currentSeason?.initial_budget ?? INITIAL_BUDGET) - spent;
+    return initial - spent;
   };
 
   useEffect(() => {
@@ -123,6 +139,7 @@ export default function MyTeamPage() {
       setAllPlayers(playersData.players || []);
       setCurrentWeek(weekData.week);
       setCurrentSeason(weekData.season || null);
+      setPreSeason(weekData.preSeason === true);
       setWeeklyScores(scoresData.scores || []);
 
       if (teamData.team) {
@@ -147,8 +164,8 @@ export default function MyTeamPage() {
       return p.slot_type === 'substitute' && p.sub_order === subOrder;
     });
 
-    if (existingPlayer && team) {
-      // Player exists and team is saved - can only transfer
+    if (existingPlayer && team && !preSeason) {
+      // Season has started - roster changes go through transfers
       toast.info('Use the Transfer button to change this player');
       return;
     }
@@ -185,8 +202,8 @@ export default function MyTeamPage() {
   };
 
   const handleRemovePlayer = (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => {
-    // Only allow removal during team creation
-    if (team) return;
+    // Removal is allowed during creation and pre-season editing only
+    if (team && !preSeason) return;
 
     setTeamPlayers(teamPlayers.filter((p) => {
       if (slotType === 'active') {
@@ -237,7 +254,28 @@ export default function MyTeamPage() {
     try {
       const budget = calculateBudget();
 
-      if (team) {
+      if (team && rosterDirty) {
+        // Pre-season roster edit: replace the whole roster via API
+        const response = await fetch('/api/fantasy-teams', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teamId: team.id,
+            name: teamName,
+            players: teamPlayers.map((p) => ({
+              rl_player_id: p.rl_player_id,
+              slot_type: p.slot_type,
+              role: p.role,
+              sub_order: p.sub_order,
+            })),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to update team');
+        }
+      } else if (team) {
         // Update existing team name via API
         const response = await fetch('/api/fantasy-teams', {
           method: 'PATCH',
@@ -345,8 +383,8 @@ export default function MyTeamPage() {
       return;
     }
 
-    if (!team) {
-      // Team not saved yet - update local state
+    if (!team || rosterDirty) {
+      // Team not saved yet (or unsaved pre-season edits) - update local state
       const updatedPlayers = teamPlayers.map((p) => {
         const id = p.rl_player_id || p.rl_player?.id;
         if (id === player1Id) {
@@ -424,8 +462,8 @@ export default function MyTeamPage() {
     const oldRole = player.role;
     const oldSubOrder = player.sub_order;
 
-    if (!team) {
-      // Team not saved yet - update local state
+    if (!team || rosterDirty) {
+      // Team not saved yet (or unsaved pre-season edits) - update local state
       // First, check if there's a player in the target slot that needs to move to the old slot
       const playerInTargetSlot = teamPlayers.find((p) => {
         if (targetSlotType === 'active') {
@@ -518,8 +556,9 @@ export default function MyTeamPage() {
       }
       return p.slot_type === 'substitute' && p.sub_order === pickerState.subOrder;
     });
-    // Add back the price of the player being replaced
-    return budget + (existingPlayer?.purchase_price || 0);
+    // Add back the price of the player being replaced (market price while
+    // editing pre-season, since the whole roster reprices on save)
+    return budget + (existingPlayer ? existingPlayer.rl_player?.price ?? existingPlayer.purchase_price : 0);
   };
 
   // Get selected player IDs excluding the one being replaced
@@ -554,7 +593,9 @@ export default function MyTeamPage() {
           </h1>
           <p className="text-muted-foreground">
             {team
-              ? 'Manage your fantasy team'
+              ? preSeason
+                ? 'Pre-season: change your roster as often as you like until the first lock'
+                : 'Manage your fantasy team'
               : 'Select 6 players: 3 active (striker, midfield, goalkeeper) and 3 substitutes'}
           </p>
         </div>
@@ -565,15 +606,20 @@ export default function MyTeamPage() {
               Transfer
             </Button>
           )}
-          {team && isEditingName && (
+          {team && rosterDirty && (
+            <Button variant="ghost" onClick={() => fetchData()} disabled={saving}>
+              Discard Changes
+            </Button>
+          )}
+          {team && isEditingName && !rosterDirty && (
             <Button variant="ghost" onClick={handleCancelEditName} disabled={saving}>
               Cancel
             </Button>
           )}
-          {(!team || isEditingName) && (
+          {(!team || isEditingName || rosterDirty) && (
             <Button onClick={handleSaveClick} disabled={saving || !isTeamComplete}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Team'}
+              {saving ? 'Saving...' : rosterDirty ? 'Save Changes' : 'Save Team'}
             </Button>
           )}
         </div>
@@ -613,6 +659,10 @@ export default function MyTeamPage() {
               <CardDescription>
                 Click on a slot to add a player
               </CardDescription>
+            ) : preSeason ? (
+              <CardDescription>
+                Click a player to replace them, drag to rearrange — unlimited edits until the season starts
+              </CardDescription>
             ) : (
               <CardDescription>
                 Drag players to swap positions
@@ -622,8 +672,8 @@ export default function MyTeamPage() {
           <CardContent>
             <FieldVisualization
               players={teamPlayers}
-              onSlotClick={!team ? handleSlotClick : undefined}
-              onRemovePlayer={!team ? handleRemovePlayer : undefined}
+              onSlotClick={!team || preSeason ? handleSlotClick : undefined}
+              onRemovePlayer={!team || preSeason ? handleRemovePlayer : undefined}
               onSwapPlayers={teamPlayers.length >= 2 ? handleSwapPlayers : undefined}
               onMovePlayer={teamPlayers.length >= 1 ? handleMovePlayer : undefined}
               disabled={false}

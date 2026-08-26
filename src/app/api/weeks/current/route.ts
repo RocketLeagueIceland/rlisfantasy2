@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSeason, getCurrentWeek } from '@/lib/seasons';
+import { getCurrentSeason, getCurrentWeek, isPreSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,12 +10,15 @@ export async function GET() {
 
     const season = await getCurrentSeason(supabase);
     if (!season) {
-      return NextResponse.json({ week: null, season: null });
+      return NextResponse.json({ week: null, season: null, preSeason: false });
     }
 
-    const week = await getCurrentWeek(supabase, season.id);
+    const [week, preSeason] = await Promise.all([
+      getCurrentWeek(supabase, season.id),
+      isPreSeason(supabase, season.id),
+    ]);
 
-    return NextResponse.json({ week, season });
+    return NextResponse.json({ week, season, preSeason });
   } catch (e) {
     console.error('Unexpected error:', e);
     return NextResponse.json({ week: null, error: 'Unexpected error' }, { status: 500 });

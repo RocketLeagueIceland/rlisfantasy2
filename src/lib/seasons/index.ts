@@ -34,6 +34,29 @@ export async function listSeasons(supabase: SupabaseClient): Promise<Season[]> {
   return (data as Season[] | null) ?? [];
 }
 
+/**
+ * Pre-season = nothing has been locked in yet: no week of the season has hit
+ * its transfer deadline or broadcast, and no stats/scores exist. While true,
+ * saved teams may be freely re-edited (unlimited changes); the first lock
+ * ends it permanently.
+ */
+export async function isPreSeason(supabase: SupabaseClient, seasonId: string): Promise<boolean> {
+  const { data: weeks } = await supabase
+    .from('weeks')
+    .select('transfer_window_closes_at, broadcast_starts_at, stats_fetched, scores_published')
+    .eq('season_id', seasonId);
+
+  const nowMs = Date.now();
+  const locked = (weeks ?? []).some(
+    (w) =>
+      w.stats_fetched ||
+      w.scores_published ||
+      (w.transfer_window_closes_at && nowMs > new Date(w.transfer_window_closes_at).getTime()) ||
+      (w.broadcast_starts_at && nowMs > new Date(w.broadcast_starts_at).getTime())
+  );
+  return !locked;
+}
+
 /** Latest week of the given season (the de-facto "current week" while a season runs). */
 export async function getCurrentWeek(
   supabase: SupabaseClient,
