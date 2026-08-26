@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, User, LogOut, Shield, Heart, Calendar, Trophy, type LucideIcon } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, Heart, Calendar, Trophy, History, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,8 +26,15 @@ const navLinks: { href: string; label: string; icon?: LucideIcon }[] = [
   { href: '/predictions', label: 'Predictions', icon: Trophy },
   { href: '/rules', label: 'Rules' },
   { href: '/my-team', label: 'My Team' },
+  { href: '/seasons', label: 'Past Seasons', icon: History },
   { href: '/donate', label: 'Donate', icon: Heart },
 ];
+
+// A link is active on its exact path and on any nested path (e.g. /seasons/11/scoreboard)
+function isLinkActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(href + '/');
+}
 
 export function Header() {
   const pathname = usePathname();
@@ -120,7 +127,7 @@ export function Header() {
               key={link.href}
               href={link.href}
               className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
-                pathname === link.href
+                isLinkActive(pathname, link.href)
                   ? 'text-primary'
                   : 'text-muted-foreground'
               }`}
@@ -204,7 +211,7 @@ export function Header() {
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted flex items-center gap-2 ${
-                  pathname === link.href
+                  isLinkActive(pathname, link.href)
                     ? 'bg-muted text-primary'
                     : 'text-muted-foreground'
                 }`}

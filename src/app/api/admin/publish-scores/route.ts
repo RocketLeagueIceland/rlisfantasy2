@@ -67,7 +67,9 @@ export async function POST(request: Request) {
 
     console.log('[PublishScores] Loaded stats for', playerStatsMap.size, 'players');
 
-    // Fetch all fantasy teams with their players
+    // Fetch the week's season's fantasy teams with their players.
+    // Filtering by season is critical: without it, publishing a new season's
+    // week would score every archived team too.
     const { data: fantasyTeams, error: teamsError } = await supabase
       .from('fantasy_teams')
       .select(`
@@ -87,7 +89,8 @@ export async function POST(request: Request) {
             team
           )
         )
-      `);
+      `)
+      .eq('season_id', week.season_id);
 
     if (teamsError) {
       console.error('[PublishScores] Error fetching fantasy teams:', teamsError);
@@ -127,6 +130,7 @@ export async function POST(request: Request) {
             ballchasing_id: null,
             aliases: [],
             is_active: true,
+            season_id: week.season_id,
             created_at: '',
           } : undefined,
         };

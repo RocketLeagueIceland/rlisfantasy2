@@ -63,10 +63,11 @@ export default function AdminStatsPage({ params }: { params: Promise<{ weekId: s
     }
     setWeek(weekData);
 
-    // Fetch players
+    // Fetch the week's season's players
     const { data: playersData } = await supabase
       .from('rl_players')
       .select('*')
+      .eq('season_id', weekData.season_id)
       .eq('is_active', true)
       .order('team')
       .order('name');

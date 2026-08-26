@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { PredictionsPageClient } from './PredictionsPageClient';
 import type {
   PlayoffPrediction,
@@ -32,15 +33,20 @@ export default async function PredictionsPage() {
     .eq('id', authUser.id)
     .single();
 
-  const { data: rawPredictions } = await service
-    .from('playoff_predictions')
-    .select(
-      `
-        *,
-        user:users!inner(id, username, avatar_url)
-      `
-    )
-    .order('created_at', { ascending: false });
+  const season = await getCurrentSeason(service);
+
+  const { data: rawPredictions } = season
+    ? await service
+        .from('playoff_predictions')
+        .select(
+          `
+            *,
+            user:users!inner(id, username, avatar_url)
+          `
+        )
+        .eq('season_id', season.id)
+        .order('created_at', { ascending: false })
+    : { data: [] };
 
   const predictions: PredictionRow[] = (rawPredictions ?? []) as PredictionRow[];
 

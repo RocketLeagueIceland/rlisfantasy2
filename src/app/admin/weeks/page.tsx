@@ -26,7 +26,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import type { Week } from '@/types';
+import type { Season, Week } from '@/types';
 
 // Extract group ID from ballchasing URL or return as-is if already an ID
 function extractBallchasingGroupId(input: string): string {
@@ -45,6 +45,7 @@ function extractBallchasingGroupId(input: string): string {
 
 export default function AdminWeeksPage() {
   const [weeks, setWeeks] = useState<Week[]>([]);
+  const [season, setSeason] = useState<Season | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -61,9 +62,26 @@ export default function AdminWeeksPage() {
   }, []);
 
   const fetchWeeks = async () => {
+    // Weeks are scoped to the current season; numbering restarts each season
+    const { data: seasonData, error: seasonError } = await supabase
+      .from('seasons')
+      .select('*')
+      .eq('is_current', true)
+      .maybeSingle();
+
+    if (seasonError || !seasonData) {
+      toast.error('No active season found — create one under Admin → Seasons');
+      setSeason(null);
+      setWeeks([]);
+      setLoading(false);
+      return;
+    }
+    setSeason(seasonData);
+
     const { data, error } = await supabase
       .from('weeks')
       .select('*')
+      .eq('season_id', seasonData.id)
       .order('week_number', { ascending: false });
 
     if (error) {
@@ -84,9 +102,14 @@ export default function AdminWeeksPage() {
       toast.error('Week number is required');
       return;
     }
+    if (!season) {
+      toast.error('No active season');
+      return;
+    }
 
     const weekData = {
       week_number: formData.week_number,
+      season_id: season.id,
       broadcast_starts_at: formData.broadcast_starts_at || null,
       transfer_window_open: false,
       stats_fetched: false,
@@ -176,7 +199,7 @@ export default function AdminWeeksPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Season Weeks</CardTitle>
+          <CardTitle>{season ? `${season.name} Weeks` : 'Season Weeks'}</CardTitle>
           <CardDescription>
             Manage the competition schedule
           </CardDescription>

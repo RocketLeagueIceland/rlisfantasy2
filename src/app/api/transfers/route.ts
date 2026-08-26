@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason, getCurrentWeek } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 import { canAddPlayer } from '@/lib/fantasy/constraints';
 import type { SlotType } from '@/types';
@@ -18,22 +19,31 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       teamId,
-      weekId,
       soldPlayerId,
-      soldPrice,
       boughtPlayerId,
-      boughtPrice,
       teamPlayerId,
-      currentBudget,
     } = body;
 
-    // Verify user owns the team
+    // Week, prices and budget are resolved server-side - never trusted from
+    // the request body.
+    const season = await getCurrentSeason(supabase);
+    if (!season) {
+      return NextResponse.json({ error: 'No active season' }, { status: 400 });
+    }
+
+    const currentWeek = await getCurrentWeek(supabase, season.id);
+    if (!currentWeek || !currentWeek.transfer_window_open) {
+      return NextResponse.json({ error: 'Transfer window is not open' }, { status: 400 });
+    }
+
+    // Verify user owns the team and it belongs to the current season
     const { data: team } = await supabase
       .from('fantasy_teams')
-      .select('id, user_id')
+      .select('id, user_id, budget_remaining')
       .eq('id', teamId)
       .eq('user_id', authUser.id)
-      .single();
+      .eq('season_id', season.id)
+      .maybeSingle();
 
     if (!team) {
       return NextResponse.json({ error: 'Team not found or not owned by user' }, { status: 403 });
@@ -50,21 +60,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to validate transfer' }, { status: 500 });
     }
 
-    // Fetch the bought player data
+    // Fetch the bought player - must be an active player of the current season
     const { data: boughtPlayer, error: boughtPlayerError } = await supabase
       .from('rl_players')
       .select('*')
       .eq('id', boughtPlayerId)
-      .single();
+      .eq('season_id', season.id)
+      .eq('is_active', true)
+      .maybeSingle();
 
     if (boughtPlayerError || !boughtPlayer) {
       console.error('Error fetching bought player:', boughtPlayerError);
-      return NextResponse.json({ error: 'Player not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Player not available this season' }, { status: 404 });
     }
 
-    // Get the slot type of the player being sold
+    // Get the team player entry being sold (sold price = its purchase price)
     const soldTeamPlayer = currentTeamPlayers?.find(p => p.rl_player_id === soldPlayerId);
-    const slotType: SlotType = soldTeamPlayer?.slot_type || 'substitute';
+    if (!soldTeamPlayer) {
+      return NextResponse.json({ error: 'Sold player is not on your team' }, { status: 400 });
+    }
+    const slotType: SlotType = soldTeamPlayer.slot_type || 'substitute';
+
+    const soldPrice: number = soldTeamPlayer.purchase_price;
+    const boughtPrice: number = boughtPlayer.price;
+
+    const newBudget = team.budget_remaining + soldPrice - boughtPrice;
+    if (newBudget < 0) {
+      return NextResponse.json({ error: 'Not enough budget for this transfer' }, { status: 400 });
+    }
 
     // Validate transfer against team constraints
     const constraintResult = canAddPlayer(
@@ -81,7 +104,7 @@ export async function POST(request: Request) {
     // Create transfer record
     const { error: transferError } = await supabase.from('transfers').insert({
       fantasy_team_id: teamId,
-      week_id: weekId,
+      week_id: currentWeek.id,
       sold_player_id: soldPlayerId,
       sold_price: soldPrice,
       bought_player_id: boughtPlayerId,
@@ -108,7 +131,6 @@ export async function POST(request: Request) {
     }
 
     // Update budget
-    const newBudget = currentBudget + soldPrice - boughtPrice;
     await supabase
       .from('fantasy_teams')
       .update({ budget_remaining: newBudget })

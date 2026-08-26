@@ -23,7 +23,7 @@ import {
   TransferModal,
 } from '@/components/fantasy';
 import { canSwapPlayers, canMoveToEmptySlot } from '@/lib/fantasy/constraints';
-import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Week, PointsBreakdown } from '@/types';
+import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Season, Week, PointsBreakdown } from '@/types';
 import { INITIAL_BUDGET } from '@/lib/scoring/constants';
 
 interface PickerState {
@@ -42,6 +42,7 @@ export default function MyTeamPage() {
   const [teamPlayers, setTeamPlayers] = useState<FantasyTeamPlayer[]>([]);
   const [allPlayers, setAllPlayers] = useState<RLPlayer[]>([]);
   const [currentWeek, setCurrentWeek] = useState<Week | null>(null);
+  const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
   const [teamName, setTeamName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [pickerState, setPickerState] = useState<PickerState>({
@@ -53,13 +54,13 @@ export default function MyTeamPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [weeklyScores, setWeeklyScores] = useState<any[]>([]);
 
-  // Calculate current budget
+  // Calculate current budget (the server recomputes this on save)
   const calculateBudget = () => {
     if (team) {
       return team.budget_remaining;
     }
     const spent = teamPlayers.reduce((sum, p) => sum + p.purchase_price, 0);
-    return INITIAL_BUDGET - spent;
+    return (currentSeason?.initial_budget ?? INITIAL_BUDGET) - spent;
   };
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function MyTeamPage() {
 
       setAllPlayers(playersData.players || []);
       setCurrentWeek(weekData.week);
+      setCurrentSeason(weekData.season || null);
       setWeeklyScores(scoresData.scores || []);
 
       if (teamData.team) {

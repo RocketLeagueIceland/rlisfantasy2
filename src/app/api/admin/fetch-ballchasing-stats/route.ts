@@ -34,10 +34,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'weekId and groupId are required' }, { status: 400 });
     }
 
-    // Fetch all registered players
+    // Resolve the week to scope player matching to its season
+    const { data: week } = await supabase
+      .from('weeks')
+      .select('season_id')
+      .eq('id', weekId)
+      .maybeSingle();
+
+    if (!week) {
+      return NextResponse.json({ error: 'Week not found' }, { status: 404 });
+    }
+
+    // Fetch the registered players of the week's season
     const { data: playersData, error: playersError } = await supabase
       .from('rl_players')
       .select('*')
+      .eq('season_id', week.season_id)
       .eq('is_active', true);
 
     if (playersError) {

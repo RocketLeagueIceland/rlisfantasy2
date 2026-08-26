@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,12 +27,16 @@ export default async function RulesPage() {
   let hasTeam = false;
 
   if (user) {
-    const { data: team } = await supabase
-      .from('fantasy_teams')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    hasTeam = !!team;
+    const season = await getCurrentSeason(supabase);
+    if (season) {
+      const { data: team } = await supabase
+        .from('fantasy_teams')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('season_id', season.id)
+        .maybeSingle();
+      hasTeam = !!team;
+    }
   }
   const formatBudget = (amount: number) => {
     if (amount >= 1_000_000) {

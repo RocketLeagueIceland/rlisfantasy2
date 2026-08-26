@@ -1,6 +1,3 @@
-const LIQUIPEDIA_API =
-  'https://liquipedia.net/rocketleague/api.php?action=parse&page=Icelandic_Esports_League/Season_11/League_Play&prop=wikitext&format=json';
-
 // Map Liquipedia team names (case-insensitive) to app display names
 const TEAM_NAME_MAP: Record<string, string> = {
   thorakureyri: 'Thor',
@@ -34,9 +31,16 @@ export interface Round {
   matches: Match[];
 }
 
-// Full schedule template — dates, times, matchups are static.
-// Scores default to null and get filled in from Liquipedia.
-const SCHEDULE_TEMPLATE: Round[] = [
+export interface SeasonSchedule {
+  /** Shown as the page subtitle, e.g. "RLIS Season 11 League Play - Double Round Robin, Bo5" */
+  subtitle: string;
+  /** Liquipedia page to pull live scores from */
+  liquipediaPage: string;
+  /** Static fixture template — dates, times, matchups. Scores default to null. */
+  template: Round[];
+}
+
+const SEASON_11_TEMPLATE: Round[] = [
   {
     round: 1, date: '2026-02-01', matches: [
       { time: '14:00', team1: 'Dusty', team2: 'Thor', score1: null, score2: null },
@@ -109,6 +113,21 @@ const SCHEDULE_TEMPLATE: Round[] = [
   },
 ];
 
+// Per-season schedule config. When a new season's fixtures are known, add an
+// entry here (subtitle, Liquipedia page, fixture template) and the schedule
+// pages pick it up automatically.
+export const SEASON_SCHEDULES: Record<number, SeasonSchedule> = {
+  11: {
+    subtitle: 'RLIS Season 11 League Play - Double Round Robin, Bo5',
+    liquipediaPage: 'Icelandic_Esports_League/Season_11/League_Play',
+    template: SEASON_11_TEMPLATE,
+  },
+};
+
+export function getSeasonSchedule(seasonNumber: number): SeasonSchedule | null {
+  return SEASON_SCHEDULES[seasonNumber] ?? null;
+}
+
 function normalizeLpName(name: string): string {
   return name.trim().toLowerCase();
 }
@@ -154,9 +173,10 @@ function parseScores(wikitext: string): ParsedMatch[] {
   return results;
 }
 
-async function fetchWikitext(): Promise<string | null> {
+async function fetchWikitext(liquipediaPage: string): Promise<string | null> {
   try {
-    const res = await fetch(LIQUIPEDIA_API, {
+    const api = `https://liquipedia.net/rocketleague/api.php?action=parse&page=${liquipediaPage}&prop=wikitext&format=json`;
+    const res = await fetch(api, {
       headers: {
         'User-Agent': 'RLISFantasy/1.0 (https://rlis-fantasy.vercel.app; contact@rlis.is)',
         'Accept-Encoding': 'gzip',
@@ -171,12 +191,15 @@ async function fetchWikitext(): Promise<string | null> {
   }
 }
 
-export async function getScheduleWithScores(): Promise<Round[]> {
-  const wikitext = await fetchWikitext();
+export async function getScheduleWithScores(seasonNumber: number): Promise<Round[] | null> {
+  const config = getSeasonSchedule(seasonNumber);
+  if (!config) return null;
+
+  const wikitext = await fetchWikitext(config.liquipediaPage);
 
   // If fetch/parse fails, return template as-is (all scores null → "Upcoming")
   if (!wikitext) {
-    return SCHEDULE_TEMPLATE;
+    return config.template;
   }
 
   const parsed = parseScores(wikitext);
@@ -188,7 +211,7 @@ export async function getScheduleWithScores(): Promise<Round[]> {
   }
 
   // Merge into template
-  return SCHEDULE_TEMPLATE.map((round) => ({
+  return config.template.map((round) => ({
     ...round,
     matches: round.matches.map((match) => {
       const key = `${match.team1} vs ${match.team2}`;

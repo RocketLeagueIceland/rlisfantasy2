@@ -29,36 +29,61 @@ interface PlayerWithStats {
   ownership_count: number;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServiceClient();
 
-    // Fetch all active players
-    const { data: players, error: playersError } = await supabase
+    // Optional ?season=<number> selects a specific (e.g. past) season;
+    // defaults to the current season.
+    const url = new URL(request.url);
+    const seasonNumberParam = url.searchParams.get('season');
+
+    let seasonQuery = supabase.from('seasons').select('*');
+    if (seasonNumberParam) {
+      seasonQuery = seasonQuery.eq('number', parseInt(seasonNumberParam, 10));
+    } else {
+      seasonQuery = seasonQuery.eq('is_current', true);
+    }
+    const { data: season } = await seasonQuery.maybeSingle();
+
+    if (!season) {
+      return NextResponse.json({ players: [] });
+    }
+
+    // Fetch the season's players. For the current season only active players
+    // are listed (they're the pickable pool); for past seasons everyone who
+    // played is part of the archive.
+    let playersQuery = supabase
       .from('rl_players')
       .select('*')
-      .eq('is_active', true)
+      .eq('season_id', season.id)
       .order('name');
+    if (season.is_current) {
+      playersQuery = playersQuery.eq('is_active', true);
+    }
+    const { data: players, error: playersError } = await playersQuery;
 
     if (playersError) {
       console.error('Error fetching players:', playersError);
       return NextResponse.json({ players: [], error: playersError.message }, { status: 500 });
     }
 
-    // Fetch aggregated stats for all players
+    // Fetch aggregated stats for the season's weeks
     const { data: statsData, error: statsError } = await supabase
       .from('player_stats')
-      .select('rl_player_id, games_played, total_goals, total_assists, total_saves, total_shots, total_demos_received');
+      .select('rl_player_id, games_played, total_goals, total_assists, total_saves, total_shots, total_demos_received, weeks!inner(season_id)')
+      .eq('weeks.season_id', season.id);
 
     if (statsError) {
       console.error('Error fetching stats:', statsError);
       return NextResponse.json({ players: [], error: statsError.message }, { status: 500 });
     }
 
-    // Fetch ownership counts (how many teams have each player)
+    // Fetch ownership counts (how many of the season's teams have each player)
     const { data: ownershipData, error: ownershipError } = await supabase
       .from('fantasy_team_players')
-      .select('rl_player_id');
+      .select('rl_player_id, fantasy_teams!inner(season_id)')
+      .eq('fantasy_teams.season_id', season.id);
 
     if (ownershipError) {
       console.error('Error fetching ownership:', ownershipError);

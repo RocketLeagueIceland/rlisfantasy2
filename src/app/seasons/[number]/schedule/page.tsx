@@ -1,24 +1,31 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { notFound } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getCurrentSeason } from '@/lib/seasons';
+import { getSeasonByNumber } from '@/lib/seasons';
 import { getScheduleWithScores, getSeasonSchedule } from '@/lib/liquipedia/schedule';
 import { ScheduleView } from '@/components/schedule/ScheduleView';
+import { Card, CardContent } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SchedulePage() {
-  const supabase = await createServiceClient();
-  const season = await getCurrentSeason(supabase);
+interface Props {
+  params: Promise<{ number: string }>;
+}
 
-  const config = season ? getSeasonSchedule(season.number) : null;
-  const schedule = season ? await getScheduleWithScores(season.number) : null;
+export default async function SeasonSchedulePage({ params }: Props) {
+  const { number } = await params;
+  const supabase = await createServiceClient();
+  const season = await getSeasonByNumber(supabase, parseInt(number, 10));
+  if (!season) notFound();
+
+  const config = getSeasonSchedule(season.number);
+  const schedule = await getScheduleWithScores(season.number);
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold">Schedule</h1>
         <p className="text-muted-foreground">
-          {config?.subtitle ?? (season ? `RLIS ${season.name}` : 'RLIS League Play')}
+          {config?.subtitle ?? `RLIS ${season.name}`}
         </p>
       </div>
 
@@ -28,7 +35,7 @@ export default async function SchedulePage() {
         <Card>
           <CardContent className="py-12">
             <p className="text-center text-muted-foreground">
-              The {season ? season.name : 'season'} schedule hasn&apos;t been published yet — check back soon!
+              No schedule is archived for {season.name}.
             </p>
           </CardContent>
         </Card>

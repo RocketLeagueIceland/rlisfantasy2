@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, Copy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,11 +33,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import type { RLPlayer, RLTeam } from '@/types';
+import type { RLPlayer, RLTeam, Season } from '@/types';
 import { RL_TEAMS, RL_TEAM_NAMES } from '@/lib/scoring/constants';
 
 export default function AdminPlayersPage() {
   const [players, setPlayers] = useState<RLPlayer[]>([]);
+  const [season, setSeason] = useState<Season | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,9 +59,26 @@ export default function AdminPlayersPage() {
   }, []);
 
   const fetchPlayers = async () => {
+    // Players are per-season rows; this page manages the current season's roster
+    const { data: seasonData, error: seasonError } = await supabase
+      .from('seasons')
+      .select('*')
+      .eq('is_current', true)
+      .maybeSingle();
+
+    if (seasonError || !seasonData) {
+      toast.error('No active season found — create one under Admin → Seasons');
+      setSeason(null);
+      setPlayers([]);
+      setLoading(false);
+      return;
+    }
+    setSeason(seasonData);
+
     const { data, error } = await supabase
       .from('rl_players')
       .select('*')
+      .eq('season_id', seasonData.id)
       .order('team')
       .order('name');
 
@@ -71,6 +89,61 @@ export default function AdminPlayersPage() {
       setPlayers(data || []);
     }
     setLoading(false);
+  };
+
+  const handleCopyFromPreviousSeason = async () => {
+    if (!season) return;
+    if (players.length > 0) {
+      toast.error('This season already has players — copy is only available for an empty roster');
+      return;
+    }
+
+    const { data: previousSeason } = await supabase
+      .from('seasons')
+      .select('*')
+      .lt('number', season.number)
+      .order('number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!previousSeason) {
+      toast.error('No previous season found');
+      return;
+    }
+
+    if (!confirm(`Copy all players from ${previousSeason.name} into ${season.name}? You can adjust teams, prices and remove departed players afterwards.`)) {
+      return;
+    }
+
+    const { data: previousPlayers, error: fetchError } = await supabase
+      .from('rl_players')
+      .select('*')
+      .eq('season_id', previousSeason.id);
+
+    if (fetchError || !previousPlayers || previousPlayers.length === 0) {
+      toast.error('Failed to load previous season players');
+      return;
+    }
+
+    const copies = previousPlayers.map((p: RLPlayer) => ({
+      name: p.name,
+      team: p.team,
+      price: p.price,
+      ballchasing_id: p.ballchasing_id,
+      aliases: p.aliases || [],
+      is_active: true,
+      season_id: season.id,
+    }));
+
+    const { error: insertError } = await supabase.from('rl_players').insert(copies);
+
+    if (insertError) {
+      toast.error('Failed to copy players');
+      console.error(insertError);
+    } else {
+      toast.success(`Copied ${copies.length} players from ${previousSeason.name}`);
+      fetchPlayers();
+    }
   };
 
   const handleOpenDialog = (player?: RLPlayer) => {
@@ -118,6 +191,10 @@ export default function AdminPlayersPage() {
       toast.error('Name and team are required');
       return;
     }
+    if (!season) {
+      toast.error('No active season');
+      return;
+    }
 
     const playerData = {
       name: formData.name,
@@ -126,6 +203,7 @@ export default function AdminPlayersPage() {
       ballchasing_id: formData.ballchasing_id || null,
       aliases: formData.aliases,
       is_active: formData.is_active,
+      season_id: season.id,
     };
 
     if (editingPlayer) {
@@ -192,13 +270,21 @@ export default function AdminPlayersPage() {
         <div>
           <h1 className="text-3xl font-bold">Manage Players</h1>
           <p className="text-muted-foreground">
-            Add and manage Rocket League players
+            {season ? `${season.name} roster` : 'Add and manage Rocket League players'}
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Player
-        </Button>
+        <div className="flex gap-2">
+          {!loading && players.length === 0 && (
+            <Button variant="outline" onClick={handleCopyFromPreviousSeason}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copy From Previous Season
+            </Button>
+          )}
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Player
+          </Button>
+        </div>
       </div>
 
       <Card>

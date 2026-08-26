@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Users, Trophy, Calendar, Home } from 'lucide-react';
+import { Users, Trophy, Calendar, Home, Layers } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 const adminNavLinks = [
   { href: '/admin', label: 'Dashboard', icon: Home },
+  { href: '/admin/seasons', label: 'Seasons', icon: Layers },
   { href: '/admin/players', label: 'Players', icon: Users },
   { href: '/admin/weeks', label: 'Weeks', icon: Calendar },
   { href: '/admin/users', label: 'Users', icon: Trophy },

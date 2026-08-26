@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason, getCurrentWeek } from '@/lib/seasons';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Trophy, Calendar, UserCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -9,20 +10,22 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboard() {
   const supabase = await createClient();
 
-  // Fetch stats
+  const season = await getCurrentSeason(supabase);
+
+  // Fetch current-season stats
   const [
     { count: playerCount },
     { count: teamCount },
     { count: userCount },
-    weekResult,
+    currentWeekResult,
   ] = await Promise.all([
-    supabase.from('rl_players').select('*', { count: 'exact', head: true }),
-    supabase.from('fantasy_teams').select('*', { count: 'exact', head: true }),
+    supabase.from('rl_players').select('*', { count: 'exact', head: true }).eq('season_id', season?.id ?? ''),
+    supabase.from('fantasy_teams').select('*', { count: 'exact', head: true }).eq('season_id', season?.id ?? ''),
     supabase.from('users').select('*', { count: 'exact', head: true }),
-    supabase.from('weeks').select('*').order('week_number', { ascending: false }).limit(1).single(),
+    season ? getCurrentWeek(supabase, season.id) : Promise.resolve(null),
   ]);
 
-  const currentWeek = weekResult.data as Week | null;
+  const currentWeek = currentWeekResult as Week | null;
 
   const stats = [
     {
@@ -60,7 +63,7 @@ export default async function AdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Manage the RLIS Fantasy League
+          {season ? `Manage the RLIS Fantasy League — ${season.name}` : 'Manage the RLIS Fantasy League — no active season'}
         </p>
       </div>
 
@@ -97,6 +100,15 @@ export default async function AdminDashboard() {
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
+            <Link
+              href="/admin/seasons"
+              className="block rounded-lg border p-3 hover:bg-muted transition-colors"
+            >
+              <div className="font-medium">Manage Seasons</div>
+              <div className="text-sm text-muted-foreground">
+                Create a new season and switch the active one
+              </div>
+            </Link>
             <Link
               href="/admin/players"
               className="block rounded-lg border p-3 hover:bg-muted transition-colors"

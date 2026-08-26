@@ -35,10 +35,21 @@ export default function AdminUsersPage() {
   }, []);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
+    // Show each user's current-season team (if any)
+    const { data: season } = await supabase
+      .from('seasons')
+      .select('id')
+      .eq('is_current', true)
+      .maybeSingle();
+
+    let query = supabase
       .from('users')
       .select('*, fantasy_teams(*)')
       .order('created_at', { ascending: false });
+    if (season) {
+      query = query.eq('fantasy_teams.season_id', season.id);
+    }
+    const { data, error } = await query;
 
     if (error) {
       toast.error('Failed to load users');

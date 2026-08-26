@@ -1,5 +1,16 @@
 export type RLTeam = '354esports' | 'dusty' | 'hamar' | 'omon' | 'thor' | 'stjarnan';
 
+export interface Season {
+  id: string;
+  number: number;
+  name: string;
+  is_current: boolean;
+  initial_budget: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+}
+
 export type Role = 'striker' | 'midfield' | 'goalkeeper';
 
 export type SlotType = 'active' | 'substitute';
@@ -21,6 +32,7 @@ export interface RLPlayer {
   ballchasing_id: string | null;
   aliases: string[]; // Alternative names used in ballchasing replays
   is_active: boolean;
+  season_id: string;
   created_at: string;
 }
 
@@ -30,6 +42,7 @@ export interface FantasyTeam {
   name: string;
   budget_remaining: number;
   created_in_week: number;
+  season_id: string;
   created_at: string;
 }
 
@@ -49,6 +62,7 @@ export interface FantasyTeamPlayer {
 export interface Week {
   id: string;
   week_number: number;
+  season_id: string;
   transfer_window_open: boolean;
   transfer_window_closes_at: string | null;
   broadcast_starts_at: string | null;
@@ -158,6 +172,11 @@ export interface Database {
         Row: User;
         Insert: Omit<User, 'created_at'>;
         Update: Partial<Omit<User, 'id' | 'created_at'>>;
+      };
+      seasons: {
+        Row: Season;
+        Insert: Omit<Season, 'id' | 'created_at'>;
+        Update: Partial<Omit<Season, 'id' | 'created_at'>>;
       };
       rl_players: {
         Row: RLPlayer;

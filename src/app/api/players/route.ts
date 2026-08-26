@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -7,9 +8,15 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
+    const season = await getCurrentSeason(supabase);
+    if (!season) {
+      return NextResponse.json({ players: [] });
+    }
+
     const { data, error } = await supabase
       .from('rl_players')
       .select('*')
+      .eq('season_id', season.id)
       .eq('is_active', true)
       .order('name');
 

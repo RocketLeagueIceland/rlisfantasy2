@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 import { predictionSchema } from '@/lib/predictions/schema';
 import { isDeadlinePassed } from '@/lib/predictions/helpers';
@@ -27,9 +28,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const season = await getCurrentSeason(supabase);
+    if (!season) {
+      return NextResponse.json({ error: 'No active season' }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from('playoff_predictions')
-      .insert({ user_id: authUser.id, ...parsed.data })
+      .insert({ user_id: authUser.id, season_id: season.id, ...parsed.data })
       .select()
       .single();
 

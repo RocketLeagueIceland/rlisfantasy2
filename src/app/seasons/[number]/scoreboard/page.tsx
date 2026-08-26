@@ -1,32 +1,37 @@
+import { notFound } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getCurrentSeason } from '@/lib/seasons';
+import { getSeasonByNumber } from '@/lib/seasons';
 import { getScoreboard } from '@/lib/scoreboard/queries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LeaderboardTable } from '@/components/scoreboard/LeaderboardTable';
-import type { ScoreboardEntry } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ScoreboardPage() {
+interface Props {
+  params: Promise<{ number: string }>;
+}
+
+export default async function SeasonScoreboardPage({ params }: Props) {
+  const { number } = await params;
   const supabase = await createServiceClient();
-  const season = await getCurrentSeason(supabase);
-  const entries: ScoreboardEntry[] = season ? await getScoreboard(season.id) : [];
+  const season = await getSeasonByNumber(supabase, parseInt(number, 10));
+  if (!season) notFound();
+
+  const entries = await getScoreboard(season.id);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Scoreboard</h1>
-        <p className="text-muted-foreground">
-          {season ? `${season.name} fantasy league standings` : 'Fantasy league standings'}
-        </p>
+        <p className="text-muted-foreground">{season.name} final standings</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Standings</CardTitle>
           <CardDescription>
-            {entries.length} {entries.length === 1 ? 'team' : 'teams'} competing
+            {entries.length} {entries.length === 1 ? 'team' : 'teams'} competed
           </CardDescription>
         </CardHeader>
         <CardContent>

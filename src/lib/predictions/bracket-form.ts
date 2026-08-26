@@ -129,6 +129,7 @@ export function previewPrediction(
   return {
     id: 'preview',
     user_id: 'preview',
+    season_id: 'preview',
     created_at: new Date().toISOString(),
     ...submission,
   };

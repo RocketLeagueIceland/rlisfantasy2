@@ -18,6 +18,7 @@ export type PlayoffTeam = Sf1Team | Sf2Team;
 export interface PlayoffPrediction {
   id: string;
   user_id: string;
+  season_id: string;
   sf1_winner: Sf1Team;
   sf1_score: SeriesScore;
   sf2_winner: Sf2Team;

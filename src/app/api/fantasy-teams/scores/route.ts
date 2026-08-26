@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,12 +13,18 @@ export async function GET() {
       return NextResponse.json({ scores: [] }, { status: 401 });
     }
 
-    // Get user's team
+    const season = await getCurrentSeason(supabase);
+    if (!season) {
+      return NextResponse.json({ scores: [] });
+    }
+
+    // Get user's team for the current season
     const { data: team } = await supabase
       .from('fantasy_teams')
       .select('id')
       .eq('user_id', user.id)
-      .single();
+      .eq('season_id', season.id)
+      .maybeSingle();
 
     if (!team) {
       return NextResponse.json({ scores: [] });

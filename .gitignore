@@ -33,9 +33,16 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# database backups (contain user emails - do not commit)
+/backups
+
+# supabase CLI scratch files
+supabase/.temp
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+security-audit-rocketleague-is-2026-02-22.pdf

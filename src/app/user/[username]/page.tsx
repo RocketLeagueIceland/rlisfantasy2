@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
+import { getCurrentSeason } from '@/lib/seasons';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -28,12 +29,16 @@ export default async function UserProfilePage({ params }: Props) {
     notFound();
   }
 
-  // Fetch user's team with players
-  const { data: team } = await supabase
-    .from('fantasy_teams')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
+  // Fetch user's team for the current season (past-season teams live under /seasons)
+  const season = await getCurrentSeason(supabase);
+  const { data: team } = season
+    ? await supabase
+        .from('fantasy_teams')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('season_id', season.id)
+        .maybeSingle()
+    : { data: null };
 
   let teamPlayers: FantasyTeamPlayer[] = [];
   if (team) {
