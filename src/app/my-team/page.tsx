@@ -832,25 +832,45 @@ export default function MyTeamPage() {
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
               Confirm Team Creation
             </DialogTitle>
-            <DialogDescription className="space-y-3 pt-2">
-              <p>
-                <strong>Are you sure you want to lock in this team?</strong>
-              </p>
-              <p>
-                Once you save your team, you <strong>cannot recreate it</strong> or make bulk changes.
-                You will only be able to make <strong>1 transfer per week</strong> during the transfer window.
-              </p>
-              <p className="text-yellow-500">
-                Make sure you are happy with your player selections and their positions before confirming!
-              </p>
-            </DialogDescription>
+            {preSeason ? (
+              <DialogDescription className="space-y-3 pt-2">
+                <p>
+                  <strong>Ready to save your team?</strong>
+                </p>
+                <p>
+                  It&apos;s still pre-season, so you can come back and <strong>change your team as
+                  often as you like</strong>
+                  {currentWeek?.transfer_window_closes_at
+                    ? ` until the rosters lock on ${new Date(currentWeek.transfer_window_closes_at).toLocaleString()}`
+                    : ' until the rosters lock an hour before the first broadcast'}
+                  .
+                </p>
+                <p className="text-yellow-500">
+                  Once the season starts, changes are limited to 1 transfer per week during the
+                  transfer window.
+                </p>
+              </DialogDescription>
+            ) : (
+              <DialogDescription className="space-y-3 pt-2">
+                <p>
+                  <strong>Are you sure you want to lock in this team?</strong>
+                </p>
+                <p>
+                  Once you save your team, you <strong>cannot recreate it</strong> or make bulk changes.
+                  You will only be able to make <strong>1 transfer per week</strong> during the transfer window.
+                </p>
+                <p className="text-yellow-500">
+                  Make sure you are happy with your player selections and their positions before confirming!
+                </p>
+              </DialogDescription>
+            )}
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setConfirmSaveOpen(false)}>
               Go Back & Review
             </Button>
             <Button onClick={handleSaveTeam} disabled={saving}>
-              {saving ? 'Saving...' : 'Yes, Lock In My Team'}
+              {saving ? 'Saving...' : preSeason ? 'Save My Team' : 'Yes, Lock In My Team'}
             </Button>
           </DialogFooter>
         </DialogContent>
