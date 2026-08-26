@@ -36,6 +36,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Transfer window is not open' }, { status: 400 });
     }
 
+    // The deadline is enforced, not just displayed (also checked by a DB trigger)
+    if (
+      currentWeek.transfer_window_closes_at &&
+      new Date() > new Date(currentWeek.transfer_window_closes_at)
+    ) {
+      return NextResponse.json({ error: 'Transfer window has closed' }, { status: 400 });
+    }
+
     // Verify user owns the team and it belongs to the current season
     const { data: team } = await supabase
       .from('fantasy_teams')

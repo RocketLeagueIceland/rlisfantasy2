@@ -53,6 +53,13 @@ export default function MyTeamPage() {
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [weeklyScores, setWeeklyScores] = useState<any[]>([]);
+  // Ticks so the transfer window closes in the UI the moment the deadline passes
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Calculate current budget (the server recomputes this on save)
   const calculateBudget = () => {
@@ -480,8 +487,16 @@ export default function MyTeamPage() {
     }
   };
 
+  // The deadline is enforced (API + DB trigger), so the UI must respect it
+  // too: the window is effectively open only while now < closes_at.
+  const windowDeadlinePassed = !!(
+    currentWeek?.transfer_window_closes_at &&
+    now > new Date(currentWeek.transfer_window_closes_at).getTime()
+  );
+  const windowEffectivelyOpen = !!currentWeek?.transfer_window_open && !windowDeadlinePassed;
+
   // Check if can transfer
-  const canTransfer = team && currentWeek?.transfer_window_open;
+  const canTransfer = team && windowEffectivelyOpen;
 
   if (loading) {
     return (
@@ -627,10 +642,10 @@ export default function MyTeamPage() {
                 <CardTitle className="text-sm">Transfer Window</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-sm font-medium ${currentWeek?.transfer_window_open ? 'text-green-500' : 'text-red-500'}`}>
-                  {currentWeek?.transfer_window_open ? 'Open' : 'Closed'}
+                <div className={`text-sm font-medium ${windowEffectivelyOpen ? 'text-green-500' : 'text-red-500'}`}>
+                  {windowEffectivelyOpen ? 'Open' : 'Closed'}
                 </div>
-                {currentWeek?.transfer_window_closes_at && currentWeek.transfer_window_open && (
+                {currentWeek?.transfer_window_closes_at && windowEffectivelyOpen && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Closes: {new Date(currentWeek.transfer_window_closes_at).toLocaleString()}
                   </p>
