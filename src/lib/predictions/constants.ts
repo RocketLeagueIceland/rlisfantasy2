@@ -1,5 +1,10 @@
 import type { SeriesId, Sf1Team, Sf2Team } from '@/types/predictions';
 
+// The season this bracket configuration (teams + deadline below) belongs to.
+// Until the Season 12 playoff bracket is known and configured here, the
+// predictions page shows "not open yet" for any other current season.
+export const PREDICTIONS_SEASON = 11;
+
 // Hard deadline for prediction submissions. Iceland is UTC year-round.
 export const PREDICTIONS_DEADLINE = '2026-04-26T16:00:00+00:00';
 

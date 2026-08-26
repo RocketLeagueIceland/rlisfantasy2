@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 import { predictionSchema } from '@/lib/predictions/schema';
+import { PREDICTIONS_SEASON } from '@/lib/predictions/constants';
 import { isDeadlinePassed } from '@/lib/predictions/helpers';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,12 @@ export async function POST(request: Request) {
     const season = await getCurrentSeason(supabase);
     if (!season) {
       return NextResponse.json({ error: 'No active season' }, { status: 400 });
+    }
+
+    // The bracket config is per-season; reject submissions until the current
+    // season's bracket has been configured
+    if (season.number !== PREDICTIONS_SEASON) {
+      return NextResponse.json({ error: 'Predictions are not open yet' }, { status: 403 });
     }
 
     const { data, error } = await supabase

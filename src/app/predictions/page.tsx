@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getCurrentSeason } from '@/lib/seasons';
+import { PREDICTIONS_SEASON } from '@/lib/predictions/constants';
 import { PredictionsPageClient } from './PredictionsPageClient';
 import type {
   PlayoffPrediction,
@@ -63,11 +64,17 @@ export default async function PredictionsPage() {
     )
     .map((p) => ({ ...stripUser(p), user: p.user }));
 
+  // The bracket config (teams + deadline) is per-season; until the current
+  // season's bracket is configured, predictions haven't opened yet.
+  const bracketAvailable = season?.number === PREDICTIONS_SEASON;
+
   return (
     <PredictionsPageClient
       ownPrediction={ownPrediction}
       otherPredictions={otherPredictions}
       currentUsername={currentUserRow?.username ?? 'You'}
+      bracketAvailable={bracketAvailable}
+      seasonName={season?.name ?? null}
     />
   );
 }
