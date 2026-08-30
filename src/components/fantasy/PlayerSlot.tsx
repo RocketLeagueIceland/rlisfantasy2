@@ -102,7 +102,7 @@ export function PlayerSlot({
               e.stopPropagation();
               onRemove();
             }}
-            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90 shadow-md"
+            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-destructive/90 shadow-md"
             title="Remove player"
           >
             <X className="h-4 w-4" />
