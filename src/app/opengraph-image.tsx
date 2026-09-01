@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { RL_TEAMS } from '@/lib/scoring/constants';
 
 export const alt = 'RLIS Fantasy League';
@@ -8,10 +10,14 @@ export const size = {
 };
 export const contentType = 'image/png';
 
-const SITE =
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://www.rocketleague.is';
+// This route is rendered at build time, where public/ is available on disk.
+// Reading the logos from disk (instead of fetching our own domain) keeps the
+// render deterministic - a network fetch would race the CDN rollout and can
+// bake a previous deployment's assets into the image.
+async function logoDataUri(relPath: string): Promise<string> {
+  const buf = await readFile(join(process.cwd(), 'public', relPath));
+  return `data:image/png;base64,${buf.toString('base64')}`;
+}
 
 // Load a Google Font as TTF (satori can't use woff2). Falls back silently.
 async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuffer | null> {
@@ -54,6 +60,8 @@ export default async function Image() {
     loadGoogleFont('Inter', 500),
     getSeasonName(),
   ]);
+  const rlisLogo = await logoDataUri('rlis_logo.png');
+  const teamLogos = await Promise.all(RL_TEAMS.map((team) => logoDataUri(`Teams/${team}.png`)));
 
   const fonts = [];
   if (black) fonts.push({ name: 'Inter', data: black, weight: 900 as const, style: 'normal' as const });
@@ -131,7 +139,7 @@ export default async function Image() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 34, marginBottom: 18 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`${SITE}/rlis_logo.png`}
+            src={rlisLogo}
             alt="RLIS"
             width={128}
             height={128}
@@ -203,7 +211,7 @@ export default async function Image() {
 
         {/* Team logos row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
-          {RL_TEAMS.map((team) => (
+          {RL_TEAMS.map((team, i) => (
             <div
               key={team}
               style={{
@@ -218,7 +226,7 @@ export default async function Image() {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${SITE}/Teams/${team}.png`} alt={team} width={64} height={64} />
+              <img src={teamLogos[i]} alt={team} width={64} height={64} />
             </div>
           ))}
         </div>
