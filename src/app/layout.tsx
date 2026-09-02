@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RLIS Fantasy League",
   description: "Fantasy league for the Icelandic Rocket League league (RLIS)",
-  metadataBase: new URL("https://fantasy.rlis.is"),
+  metadataBase: new URL("https://www.rocketleague.is"),
   icons: {
     icon: "/rlis_logo.png",
     apple: "/rlis_logo.png",
