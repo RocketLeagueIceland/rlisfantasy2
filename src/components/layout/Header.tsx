@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, User, LogOut, Shield, Heart, Calendar, Trophy, History, type LucideIcon } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, Heart, Calendar, Trophy, History, Home, BarChart3, Users, BookOpen, Star, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,14 +18,14 @@ import { createClient } from '@/lib/supabase/client';
 import { isSafeUrl } from '@/lib/utils';
 import type { User as UserType } from '@/types';
 
-const navLinks: { href: string; label: string; icon?: LucideIcon }[] = [
-  { href: '/', label: 'Home' },
-  { href: '/scoreboard', label: 'Scoreboard' },
-  { href: '/players', label: 'Players' },
+const navLinks: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/scoreboard', label: 'Scoreboard', icon: BarChart3 },
+  { href: '/players', label: 'Players', icon: Users },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
   { href: '/predictions', label: 'Predictions', icon: Trophy },
-  { href: '/rules', label: 'Rules' },
-  { href: '/my-team', label: 'My Team' },
+  { href: '/rules', label: 'Rules', icon: BookOpen },
+  { href: '/my-team', label: 'My Team', icon: Star },
   { href: '/seasons', label: 'Past Seasons', icon: History },
   { href: '/donate', label: 'Donate', icon: Heart },
 ];
@@ -132,7 +132,7 @@ export function Header() {
                   : 'text-muted-foreground'
               }`}
             >
-              {link.icon && <link.icon className="h-4 w-4" />}
+              <link.icon className="h-4 w-4" />
               {link.label}
             </Link>
           ))}
@@ -216,7 +216,7 @@ export function Header() {
                     : 'text-muted-foreground'
                 }`}
               >
-                {link.icon && <link.icon className="h-4 w-4" />}
+                <link.icon className="h-4 w-4" />
                 {link.label}
               </Link>
             ))}
@@ -224,12 +224,13 @@ export function Header() {
               <Link
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted flex items-center gap-2 ${
                   pathname.startsWith('/admin')
                     ? 'bg-muted text-primary'
                     : 'text-muted-foreground'
                 }`}
               >
+                <Shield className="h-4 w-4" />
                 Admin
               </Link>
             )}
