@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { ArrowUp, ArrowDown, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RL_TEAM_NAMES } from '@/lib/scoring/constants';
 
 interface PlayerWithStats {
@@ -26,14 +27,59 @@ interface PlayerWithStats {
   weeks_played: number;
   avg_points_per_week: number;
   ownership_count: number;
+  weekly_points: { week_number: number; points: number }[];
 }
 
 type SortField =
   | 'team' | 'name' | 'price'
   | 'total_goals' | 'total_assists' | 'total_saves' | 'total_shots' | 'total_demos_received'
-  | 'total_points' | 'avg_points_per_week' | 'ownership_count' | 'games_played';
+  | 'total_points' | 'avg_points_per_week' | 'ownership_count' | 'games_played'
+  | `week_${number}`;
+
+const weekSortField = (week: number): SortField => `week_${week}`;
+
+const weekPointsFor = (player: PlayerWithStats, week: number): number | null =>
+  player.weekly_points.find((w) => w.week_number === week)?.points ?? null;
+
+function TeamCell({ team }: { team: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Image src={`/Teams/${team}.png`} alt={team} width={24} height={24} className="rounded" />
+      <span className="text-xs text-muted-foreground hidden sm:inline">{RL_TEAM_NAMES[team]}</span>
+    </div>
+  );
+}
 
 type SortDirection = 'asc' | 'desc';
+
+interface SortHeaderProps {
+  field: SortField;
+  label: string;
+  className?: string;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSort: (field: SortField) => void;
+}
+
+function SortHeader({ field, label, className = '', sortField, sortDirection, onSort }: SortHeaderProps) {
+  return (
+    <th
+      className={`px-2 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none ${className}`}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field && (
+          sortDirection === 'asc' ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
+        )}
+      </div>
+    </th>
+  );
+}
 
 interface PlayersTableProps {
   /** Season number to show; omit for the current season. */
@@ -81,9 +127,19 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
         'total_goals', 'total_assists', 'total_saves', 'total_shots',
         'total_points', 'avg_points_per_week', 'ownership_count', 'games_played', 'price'
       ];
-      setSortDirection(numericFields.includes(field) ? 'desc' : 'asc');
+      const isNumeric = numericFields.includes(field) || field.startsWith('week_');
+      setSortDirection(isNumeric ? 'desc' : 'asc');
     }
   };
+
+  // Every week any player has stats for, ascending
+  const allWeeks = useMemo(
+    () =>
+      [...new Set(players.flatMap((p) => p.weekly_points.map((w) => w.week_number)))].sort(
+        (a, b) => a - b
+      ),
+    [players]
+  );
 
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
@@ -96,31 +152,25 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
         }
       } else if (sortField === 'name') {
         comparison = a.name.localeCompare(b.name);
+      } else if (sortField.startsWith('week_')) {
+        const week = parseInt(sortField.slice('week_'.length), 10);
+        // Players without a score that week sort to the bottom regardless of direction
+        const aPts = weekPointsFor(a, week);
+        const bPts = weekPointsFor(b, week);
+        if (aPts === null && bPts === null) comparison = 0;
+        else if (aPts === null) return 1;
+        else if (bPts === null) return -1;
+        else comparison = aPts - bPts;
       } else {
-        comparison = (a[sortField] as number) - (b[sortField] as number);
+        const numericField = sortField as Exclude<SortField, 'team' | 'name' | `week_${number}`>;
+        comparison = a[numericField] - b[numericField];
       }
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [players, sortField, sortDirection]);
 
-  const SortHeader = ({ field, label, className = '' }: { field: SortField; label: string; className?: string }) => (
-    <th
-      className={`px-2 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none ${className}`}
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field && (
-          sortDirection === 'asc' ? (
-            <ArrowUp className="h-3 w-3" />
-          ) : (
-            <ArrowDown className="h-3 w-3" />
-          )
-        )}
-      </div>
-    </th>
-  );
+  const headerProps = { sortField, sortDirection, onSort: handleSort };
 
   if (loading) {
     return (
@@ -140,95 +190,154 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b bg-muted/50">
-                <tr>
-                  <SortHeader field="team" label="Team" className="pl-4" />
-                  <SortHeader field="name" label="Player" />
-                  <SortHeader field="price" label="Price" />
-                  <SortHeader field="games_played" label="GP" />
-                  <SortHeader field="total_goals" label="Goals" />
-                  <SortHeader field="total_assists" label="Assists" />
-                  <SortHeader field="total_saves" label="Saves" />
-                  <SortHeader field="total_shots" label="Shots" />
-                  <SortHeader field="total_demos_received" label="Demos" />
-                  <SortHeader field="total_points" label="Points" />
-                  <SortHeader field="avg_points_per_week" label="Avg/Week" />
-                  <SortHeader field="ownership_count" label="Owned" className="pr-4" />
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {sortedPlayers.map((player) => (
-                  <tr key={player.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-2 py-3 pl-4">
-                      <div className="flex items-center gap-2">
-                        <Image
-                          src={`/Teams/${player.team}.png`}
-                          alt={player.team}
-                          width={24}
-                          height={24}
-                          className="rounded"
+          <Tabs defaultValue="overall">
+            <TabsList className="mx-4 mb-2">
+              <TabsTrigger value="overall">Overall</TabsTrigger>
+              <TabsTrigger value="weekly">Weekly Breakdown</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overall">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4" />
+                      <SortHeader {...headerProps} field="name" label="Player" />
+                      <SortHeader {...headerProps} field="price" label="Price" />
+                      <SortHeader {...headerProps} field="games_played" label="GP" />
+                      <SortHeader {...headerProps} field="total_goals" label="Goals" />
+                      <SortHeader {...headerProps} field="total_assists" label="Assists" />
+                      <SortHeader {...headerProps} field="total_saves" label="Saves" />
+                      <SortHeader {...headerProps} field="total_shots" label="Shots" />
+                      <SortHeader {...headerProps} field="total_demos_received" label="Demos" />
+                      <SortHeader {...headerProps} field="total_points" label="Points" />
+                      <SortHeader {...headerProps} field="avg_points_per_week" label="Avg/Week" />
+                      <SortHeader {...headerProps} field="ownership_count" label="Owned" className="pr-4" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {sortedPlayers.map((player) => (
+                      <tr key={player.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-3 pl-4">
+                          <TeamCell team={player.team} />
+                        </td>
+                        <td className="px-2 py-3 font-medium">{player.name}</td>
+                        <td className="px-2 py-3 text-muted-foreground font-mono text-sm">
+                          {formatPrice(player.price)}
+                        </td>
+                        <td className="px-2 py-3 text-center text-muted-foreground">
+                          {player.games_played}
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{player.total_goals}</span>
+                            <span className="text-xs text-green-500">+{player.points_goals}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{player.total_assists}</span>
+                            <span className="text-xs text-green-500">+{player.points_assists}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{player.total_saves}</span>
+                            <span className="text-xs text-green-500">+{player.points_saves}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{player.total_shots}</span>
+                            <span className="text-xs text-green-500">+{player.points_shots}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{player.total_demos_received}</span>
+                            <span className="text-xs text-red-500">{player.points_demos}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center font-bold text-primary">
+                          {player.total_points}
+                        </td>
+                        <td className="px-2 py-3 text-center font-medium text-muted-foreground">
+                          {player.weeks_played > 0 ? player.avg_points_per_week.toFixed(1) : '-'}
+                        </td>
+                        <td className="px-2 py-3 pr-4 text-center">
+                          <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            <span>{player.ownership_count}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+            <TabsContent value="weekly">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4" />
+                      <SortHeader {...headerProps} field="name" label="Player" />
+                      <SortHeader {...headerProps} field="total_points" label="Points" />
+                      <SortHeader {...headerProps} field="avg_points_per_week" label="Avg/Week" />
+                      {allWeeks.map((week, i) => (
+                        <SortHeader {...headerProps}
+                          key={week}
+                          field={weekSortField(week)}
+                          label={`W${week}`}
+                          className={i === allWeeks.length - 1 ? 'pr-4' : ''}
                         />
-                        <span className="text-xs text-muted-foreground hidden sm:inline">
-                          {RL_TEAM_NAMES[player.team]}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 font-medium">{player.name}</td>
-                    <td className="px-2 py-3 text-muted-foreground font-mono text-sm">
-                      {formatPrice(player.price)}
-                    </td>
-                    <td className="px-2 py-3 text-center text-muted-foreground">
-                      {player.games_played}
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{player.total_goals}</span>
-                        <span className="text-xs text-green-500">+{player.points_goals}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{player.total_assists}</span>
-                        <span className="text-xs text-green-500">+{player.points_assists}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{player.total_saves}</span>
-                        <span className="text-xs text-green-500">+{player.points_saves}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{player.total_shots}</span>
-                        <span className="text-xs text-green-500">+{player.points_shots}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{player.total_demos_received}</span>
-                        <span className="text-xs text-red-500">{player.points_demos}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-center font-bold text-primary">
-                      {player.total_points}
-                    </td>
-                    <td className="px-2 py-3 text-center font-medium text-muted-foreground">
-                      {player.weeks_played > 0 ? player.avg_points_per_week.toFixed(1) : '-'}
-                    </td>
-                    <td className="px-2 py-3 pr-4 text-center">
-                      <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>{player.ownership_count}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {sortedPlayers.map((player) => (
+                      <tr key={player.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-3 pl-4">
+                          <TeamCell team={player.team} />
+                        </td>
+                        <td className="px-2 py-3 font-medium">{player.name}</td>
+                        <td className="px-2 py-3 text-center font-bold text-primary">
+                          {player.total_points}
+                        </td>
+                        <td className="px-2 py-3 text-center font-medium text-muted-foreground">
+                          {player.weeks_played > 0 ? player.avg_points_per_week.toFixed(1) : '-'}
+                        </td>
+                        {allWeeks.map((week, i) => {
+                          const points = weekPointsFor(player, week);
+                          return (
+                            <td
+                              key={week}
+                              className={`px-2 py-3 text-center text-sm ${
+                                sortField === weekSortField(week) ? 'bg-muted/40' : ''
+                              } ${i === allWeeks.length - 1 ? 'pr-4' : ''}`}
+                            >
+                              {points === null ? (
+                                <span className="text-muted-foreground">-</span>
+                              ) : (
+                                points
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                    {allWeeks.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                          No weekly stats yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

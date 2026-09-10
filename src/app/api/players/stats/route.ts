@@ -27,6 +27,8 @@ interface PlayerWithStats {
   avg_points_per_week: number;
   // Ownership
   ownership_count: number;
+  // Per-week base points (averaged per game within the week), weeks played only
+  weekly_points: { week_number: number; points: number }[];
 }
 
 export async function GET(request: Request) {
@@ -71,7 +73,7 @@ export async function GET(request: Request) {
     // Fetch aggregated stats for the season's weeks
     const { data: statsData, error: statsError } = await supabase
       .from('player_stats')
-      .select('rl_player_id, games_played, total_goals, total_assists, total_saves, total_shots, total_demos_received, weeks!inner(season_id)')
+      .select('rl_player_id, games_played, total_goals, total_assists, total_saves, total_shots, total_demos_received, weeks!inner(week_number, season_id)')
       .eq('weeks.season_id', season.id);
 
     if (statsError) {
@@ -109,12 +111,14 @@ export async function GET(request: Request) {
       points_saves: number;
       points_shots: number;
       points_demos: number;
+      weekly_points: { week_number: number; points: number }[];
     }>();
 
     for (const stat of statsData || []) {
       const existing = statsMap.get(stat.rl_player_id) || {
         goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0, weeks: 0,
         points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
+        weekly_points: [],
       };
 
       const gp = stat.games_played || 0;
@@ -124,6 +128,24 @@ export async function GET(request: Request) {
       const weekShots = stat.total_shots || 0;
       const weekDemos = stat.total_demos_received || 0;
 
+      const weekPointsGoals = gp > 0 ? (weekGoals * BASE_POINTS.goal) / gp : 0;
+      const weekPointsAssists = gp > 0 ? (weekAssists * BASE_POINTS.assist) / gp : 0;
+      const weekPointsSaves = gp > 0 ? (weekSaves * BASE_POINTS.save) / gp : 0;
+      const weekPointsShots = gp > 0 ? (weekShots * BASE_POINTS.shot) / gp : 0;
+      const weekPointsDemos = gp > 0 ? (weekDemos * BASE_POINTS.demo_received) / gp : 0;
+
+      // Per-week breakdown (only weeks the player actually played)
+      const weekNumber = (stat.weeks as unknown as { week_number: number } | null)?.week_number;
+      const weeklyPoints = existing.weekly_points;
+      if (gp > 0 && typeof weekNumber === 'number') {
+        weeklyPoints.push({
+          week_number: weekNumber,
+          points: Math.round(
+            weekPointsGoals + weekPointsAssists + weekPointsSaves + weekPointsShots + weekPointsDemos
+          ),
+        });
+      }
+
       statsMap.set(stat.rl_player_id, {
         goals: existing.goals + weekGoals,
         assists: existing.assists + weekAssists,
@@ -132,11 +154,12 @@ export async function GET(request: Request) {
         demos: existing.demos + weekDemos,
         games: existing.games + gp,
         weeks: existing.weeks + (gp > 0 ? 1 : 0),
-        points_goals: existing.points_goals + (gp > 0 ? (weekGoals * BASE_POINTS.goal) / gp : 0),
-        points_assists: existing.points_assists + (gp > 0 ? (weekAssists * BASE_POINTS.assist) / gp : 0),
-        points_saves: existing.points_saves + (gp > 0 ? (weekSaves * BASE_POINTS.save) / gp : 0),
-        points_shots: existing.points_shots + (gp > 0 ? (weekShots * BASE_POINTS.shot) / gp : 0),
-        points_demos: existing.points_demos + (gp > 0 ? (weekDemos * BASE_POINTS.demo_received) / gp : 0),
+        points_goals: existing.points_goals + weekPointsGoals,
+        points_assists: existing.points_assists + weekPointsAssists,
+        points_saves: existing.points_saves + weekPointsSaves,
+        points_shots: existing.points_shots + weekPointsShots,
+        points_demos: existing.points_demos + weekPointsDemos,
+        weekly_points: weeklyPoints,
       });
     }
 
@@ -154,6 +177,7 @@ export async function GET(request: Request) {
       const stats = statsMap.get(player.id) || {
         goals: 0, assists: 0, saves: 0, shots: 0, demos: 0, games: 0, weeks: 0,
         points_goals: 0, points_assists: 0, points_saves: 0, points_shots: 0, points_demos: 0,
+        weekly_points: [],
       };
 
       const points_goals = Math.round(stats.points_goals);
@@ -183,6 +207,7 @@ export async function GET(request: Request) {
         weeks_played: stats.weeks,
         avg_points_per_week: stats.weeks > 0 ? Math.round((total_points / stats.weeks) * 10) / 10 : 0,
         ownership_count: ownershipMap.get(player.id) || 0,
+        weekly_points: [...stats.weekly_points].sort((a, b) => a.week_number - b.week_number),
       };
     });
 
