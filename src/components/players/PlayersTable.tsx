@@ -79,7 +79,7 @@ const weekPointsFor = (player: PlayerWithStats, week: number): number | null =>
 function TeamCell({ team }: { team: string }) {
   return (
     <div className="flex items-center gap-2">
-      <Image src={`/Teams/${team}.png`} alt={team} width={24} height={24} className="rounded" />
+      <Image src={`/Teams/${team}.png`} alt={team} width={24} height={24} className="rounded shrink-0" />
       <span className="text-xs text-muted-foreground hidden sm:inline">{RL_TEAM_NAMES[team]}</span>
     </div>
   );
@@ -266,8 +266,8 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                 <table className="w-full">
                   <thead className="border-b bg-muted/50">
                     <tr>
-                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4" />
-                      <SortHeader {...headerProps} field="name" label="Player" />
+                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4 frozen-col frozen-col-1" />
+                      <SortHeader {...headerProps} field="name" label="Player" className="frozen-col frozen-col-2" />
                       <SortHeader {...headerProps} field="price" label="Price" />
                       <SortHeader {...headerProps} field="games_played" label="GP" />
                       <SortHeader {...headerProps} field="total_goals" label="Goals" />
@@ -285,13 +285,13 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                       <tr
                         key={player.id}
                         className={`hover:bg-muted/50 transition-colors ${
-                          mySlots.has(player.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                          mySlots.has(player.id) ? 'on-my-team bg-primary/5' : ''
                         }`}
                       >
-                        <td className="px-2 py-3 pl-4">
+                        <td className="px-2 py-3 pl-4 frozen-col frozen-col-1">
                           <TeamCell team={player.team} />
                         </td>
-                        <td className="px-2 py-3">
+                        <td className="px-2 py-3 frozen-col frozen-col-2">
                           <PlayerNameCell name={player.name} slot={mySlots.get(player.id)} />
                         </td>
                         <td className="px-2 py-3 text-muted-foreground font-mono text-sm">
@@ -353,8 +353,8 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                 <table className="w-full">
                   <thead className="border-b bg-muted/50">
                     <tr>
-                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4" />
-                      <SortHeader {...headerProps} field="name" label="Player" />
+                      <SortHeader {...headerProps} field="team" label="Team" className="pl-4 frozen-col frozen-col-1" />
+                      <SortHeader {...headerProps} field="name" label="Player" className="frozen-col frozen-col-2" />
                       <SortHeader {...headerProps} field="total_points" label="Points" />
                       <SortHeader {...headerProps} field="avg_points_per_week" label="Avg/Week" />
                       {allWeeks.map((week, i) => (
@@ -372,13 +372,13 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                       <tr
                         key={player.id}
                         className={`hover:bg-muted/50 transition-colors ${
-                          mySlots.has(player.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                          mySlots.has(player.id) ? 'on-my-team bg-primary/5' : ''
                         }`}
                       >
-                        <td className="px-2 py-3 pl-4">
+                        <td className="px-2 py-3 pl-4 frozen-col frozen-col-1">
                           <TeamCell team={player.team} />
                         </td>
-                        <td className="px-2 py-3">
+                        <td className="px-2 py-3 frozen-col frozen-col-2">
                           <PlayerNameCell name={player.name} slot={mySlots.get(player.id)} />
                         </td>
                         <td className="px-2 py-3 text-center font-bold text-primary">

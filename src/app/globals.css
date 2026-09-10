@@ -140,3 +140,43 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Accent bar for the viewer's own players in the Players table. Drawn as an
+   inset shadow rather than a border: the table collapses borders, and sticky
+   cells can't paint their own border area in that mode. */
+tr.on-my-team > td:first-child {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+/* Frozen leading columns for wide stat tables on narrow screens.
+   The table scrolls sideways inside an overflow-x container; the Team and
+   Player cells stay pinned so you always know whose row you're reading. */
+@media (max-width: 639px) {
+  .frozen-col {
+    position: sticky;
+    z-index: 1;
+    background: var(--card);
+  }
+  thead .frozen-col,
+  tbody tr:hover > .frozen-col {
+    background: color-mix(in oklab, var(--muted) 50%, var(--card));
+  }
+  tbody tr.on-my-team > .frozen-col {
+    background: color-mix(in oklab, var(--primary) 5%, var(--card));
+  }
+  tbody tr.on-my-team:hover > .frozen-col {
+    background: color-mix(in oklab, var(--muted) 50%, var(--card));
+  }
+  /* Fixed first-column width so the second frozen column's offset is exact. */
+  .frozen-col-1 {
+    left: 0;
+    width: 4.75rem;
+    min-width: 4.75rem;
+    max-width: 4.75rem;
+    box-sizing: border-box;
+  }
+  .frozen-col-2 {
+    left: 4.75rem;
+    box-shadow: inset -1px 0 0 var(--border);
+  }
+}
