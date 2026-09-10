@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { ArrowUp, ArrowDown, Users } from 'lucide-react';
+import { ArrowUp, ArrowDown, Users, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RL_TEAM_NAMES } from '@/lib/scoring/constants';
+import { RL_TEAM_NAMES, ROLE_INFO } from '@/lib/scoring/constants';
+import type { Role, SlotType } from '@/types';
 
 interface PlayerWithStats {
   id: string;
@@ -37,6 +39,39 @@ type SortField =
   | `week_${number}`;
 
 const weekSortField = (week: number): SortField => `week_${week}`;
+
+/** Where a player sits on the viewer's own fantasy team. */
+interface MySlot {
+  slot_type: SlotType;
+  role: Role | null;
+  sub_order: number | null;
+}
+
+function MySlotBadge({ slot }: { slot: MySlot }) {
+  if (slot.slot_type === 'active') {
+    const roleName = slot.role ? ROLE_INFO[slot.role].name : 'Starter';
+    return (
+      <Badge variant="default" className="gap-1" title="Starting roster on your team">
+        <Star className="h-3 w-3 fill-current" />
+        {roleName}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" title="Bench on your team">
+      Sub{slot.sub_order ? ` ${slot.sub_order}` : ''}
+    </Badge>
+  );
+}
+
+function PlayerNameCell({ name, slot }: { name: string; slot?: MySlot }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="font-medium">{name}</span>
+      {slot && <MySlotBadge slot={slot} />}
+    </div>
+  );
+}
 
 const weekPointsFor = (player: PlayerWithStats, week: number): number | null =>
   player.weekly_points.find((w) => w.week_number === week)?.points ?? null;
@@ -88,6 +123,8 @@ interface PlayersTableProps {
 
 export function PlayersTable({ seasonNumber }: PlayersTableProps) {
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
+  // rl_player_id -> slot on the signed-in user's team (current season only)
+  const [mySlots, setMySlots] = useState<Map<string, MySlot>>(new Map());
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>('team');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -108,6 +145,34 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
     };
 
     fetchPlayers();
+  }, [seasonNumber]);
+
+  // Archive pages have no "my team"; on the live season, mark the viewer's own players.
+  useEffect(() => {
+    if (seasonNumber) return;
+    let cancelled = false;
+    const fetchMyTeam = async () => {
+      try {
+        const response = await fetch('/api/fantasy-teams');
+        if (!response.ok) return; // 401 when signed out
+        const data = await response.json();
+        const slots = new Map<string, MySlot>();
+        for (const tp of data.teamPlayers || []) {
+          slots.set(tp.rl_player_id, {
+            slot_type: tp.slot_type,
+            role: tp.role ?? null,
+            sub_order: tp.sub_order ?? null,
+          });
+        }
+        if (!cancelled) setMySlots(slots);
+      } catch (error) {
+        console.error('Error fetching my team:', error);
+      }
+    };
+    fetchMyTeam();
+    return () => {
+      cancelled = true;
+    };
   }, [seasonNumber]);
 
   const formatPrice = (price: number) => {
@@ -187,6 +252,7 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
           <CardTitle>Player Stats</CardTitle>
           <CardDescription>
             {players.length} players{seasonNumber ? '' : ' available'}. Click column headers to sort.
+            {mySlots.size > 0 && ' Highlighted rows are on your team.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -216,11 +282,18 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                   </thead>
                   <tbody className="divide-y">
                     {sortedPlayers.map((player) => (
-                      <tr key={player.id} className="hover:bg-muted/50 transition-colors">
+                      <tr
+                        key={player.id}
+                        className={`hover:bg-muted/50 transition-colors ${
+                          mySlots.has(player.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                        }`}
+                      >
                         <td className="px-2 py-3 pl-4">
                           <TeamCell team={player.team} />
                         </td>
-                        <td className="px-2 py-3 font-medium">{player.name}</td>
+                        <td className="px-2 py-3">
+                          <PlayerNameCell name={player.name} slot={mySlots.get(player.id)} />
+                        </td>
                         <td className="px-2 py-3 text-muted-foreground font-mono text-sm">
                           {formatPrice(player.price)}
                         </td>
@@ -296,11 +369,18 @@ export function PlayersTable({ seasonNumber }: PlayersTableProps) {
                   </thead>
                   <tbody className="divide-y">
                     {sortedPlayers.map((player) => (
-                      <tr key={player.id} className="hover:bg-muted/50 transition-colors">
+                      <tr
+                        key={player.id}
+                        className={`hover:bg-muted/50 transition-colors ${
+                          mySlots.has(player.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                        }`}
+                      >
                         <td className="px-2 py-3 pl-4">
                           <TeamCell team={player.team} />
                         </td>
-                        <td className="px-2 py-3 font-medium">{player.name}</td>
+                        <td className="px-2 py-3">
+                          <PlayerNameCell name={player.name} slot={mySlots.get(player.id)} />
+                        </td>
                         <td className="px-2 py-3 text-center font-bold text-primary">
                           {player.total_points}
                         </td>
