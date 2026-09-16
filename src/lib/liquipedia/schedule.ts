@@ -2,7 +2,7 @@
 const TEAM_NAME_MAP: Record<string, string> = {
   thorakureyri: 'Thor',
   dusty: 'Dusty',
-  omon: 'Ómon',
+  omon: 'Omon',
   '354 esports': '354 Esports',
   stjarnan: 'Stjarnan',
   hamar: 'Hamar',
@@ -13,7 +13,7 @@ const TEAM_NAME_MAP: Record<string, string> = {
 export const TEAM_KEY_MAP: Record<string, string> = {
   Dusty: 'dusty',
   Thor: 'thor',
-  'Ómon': 'omon',
+  'Omon': 'omon',
   '354 Esports': '354esports',
   Hamar: 'hamar',
   Stjarnan: 'stjarnan',
@@ -47,13 +47,13 @@ const SEASON_11_TEMPLATE: Round[] = [
   {
     round: 1, date: '2026-02-01', matches: [
       { time: '14:00', team1: 'Dusty', team2: 'Thor', score1: null, score2: null },
-      { time: '14:45', team1: 'Ómon', team2: '354 Esports', score1: null, score2: null },
+      { time: '14:45', team1: 'Omon', team2: '354 Esports', score1: null, score2: null },
       { time: '15:30', team1: 'Hamar', team2: 'Stjarnan', score1: null, score2: null },
     ],
   },
   {
     round: 2, date: '2026-02-08', matches: [
-      { time: '14:00', team1: 'Ómon', team2: 'Thor', score1: null, score2: null },
+      { time: '14:00', team1: 'Omon', team2: 'Thor', score1: null, score2: null },
       { time: '14:45', team1: 'Hamar', team2: 'Dusty', score1: null, score2: null },
       { time: '15:30', team1: 'Stjarnan', team2: '354 Esports', score1: null, score2: null },
     ],
@@ -61,7 +61,7 @@ const SEASON_11_TEMPLATE: Round[] = [
   {
     round: 3, date: '2026-02-15', matches: [
       { time: '14:00', team1: 'Hamar', team2: 'Thor', score1: null, score2: null },
-      { time: '14:45', team1: 'Stjarnan', team2: 'Ómon', score1: null, score2: null },
+      { time: '14:45', team1: 'Stjarnan', team2: 'Omon', score1: null, score2: null },
       { time: '15:30', team1: '354 Esports', team2: 'Dusty', score1: null, score2: null },
     ],
   },
@@ -69,26 +69,26 @@ const SEASON_11_TEMPLATE: Round[] = [
     round: 4, date: '2026-02-22', matches: [
       { time: '14:00', team1: 'Stjarnan', team2: 'Thor', score1: null, score2: null },
       { time: '14:45', team1: '354 Esports', team2: 'Hamar', score1: null, score2: null },
-      { time: '15:30', team1: 'Dusty', team2: 'Ómon', score1: null, score2: null },
+      { time: '15:30', team1: 'Dusty', team2: 'Omon', score1: null, score2: null },
     ],
   },
   {
     round: 5, date: '2026-03-01', matches: [
       { time: '14:00', team1: '354 Esports', team2: 'Thor', score1: null, score2: null },
       { time: '14:45', team1: 'Dusty', team2: 'Stjarnan', score1: null, score2: null },
-      { time: '15:30', team1: 'Ómon', team2: 'Hamar', score1: null, score2: null },
+      { time: '15:30', team1: 'Omon', team2: 'Hamar', score1: null, score2: null },
     ],
   },
   {
     round: 6, date: '2026-03-08', matches: [
       { time: '14:00', team1: 'Thor', team2: 'Dusty', score1: null, score2: null },
-      { time: '14:45', team1: '354 Esports', team2: 'Ómon', score1: null, score2: null },
+      { time: '14:45', team1: '354 Esports', team2: 'Omon', score1: null, score2: null },
       { time: '15:30', team1: 'Stjarnan', team2: 'Hamar', score1: null, score2: null },
     ],
   },
   {
     round: 7, date: '2026-03-15', matches: [
-      { time: '14:00', team1: 'Thor', team2: 'Ómon', score1: null, score2: null },
+      { time: '14:00', team1: 'Thor', team2: 'Omon', score1: null, score2: null },
       { time: '14:45', team1: 'Dusty', team2: 'Hamar', score1: null, score2: null },
       { time: '15:30', team1: '354 Esports', team2: 'Stjarnan', score1: null, score2: null },
     ],
@@ -96,7 +96,7 @@ const SEASON_11_TEMPLATE: Round[] = [
   {
     round: 8, date: '2026-03-22', matches: [
       { time: '14:00', team1: 'Thor', team2: 'Hamar', score1: null, score2: null },
-      { time: '14:45', team1: 'Ómon', team2: 'Stjarnan', score1: null, score2: null },
+      { time: '14:45', team1: 'Omon', team2: 'Stjarnan', score1: null, score2: null },
       { time: '15:30', team1: 'Dusty', team2: '354 Esports', score1: null, score2: null },
     ],
   },
@@ -104,14 +104,14 @@ const SEASON_11_TEMPLATE: Round[] = [
     round: 9, date: '2026-03-29', matches: [
       { time: '14:00', team1: 'Thor', team2: 'Stjarnan', score1: null, score2: null },
       { time: '14:45', team1: 'Hamar', team2: '354 Esports', score1: null, score2: null },
-      { time: '15:30', team1: 'Ómon', team2: 'Dusty', score1: null, score2: null },
+      { time: '15:30', team1: 'Omon', team2: 'Dusty', score1: null, score2: null },
     ],
   },
   {
     round: 10, date: '2026-04-19', matches: [
       { time: '14:00', team1: 'Thor', team2: '354 Esports', score1: null, score2: null },
       { time: '14:45', team1: 'Stjarnan', team2: 'Dusty', score1: null, score2: null },
-      { time: '15:30', team1: 'Hamar', team2: 'Ómon', score1: null, score2: null },
+      { time: '15:30', team1: 'Hamar', team2: 'Omon', score1: null, score2: null },
     ],
   },
 ];
@@ -121,19 +121,19 @@ const SEASON_12_TEMPLATE: Round[] = [
     round: 1, date: '2026-09-02', matches: [
       { time: '19:00', team1: 'Thor', team2: 'Flux', score1: null, score2: null },
       { time: '19:45', team1: 'Dusty', team2: 'Hamar', score1: null, score2: null },
-      { time: '20:30', team1: '354 Esports', team2: 'Ómon', score1: null, score2: null },
+      { time: '20:30', team1: '354 Esports', team2: 'Omon', score1: null, score2: null },
     ],
   },
   {
     round: 2, date: '2026-09-09', matches: [
       { time: '19:00', team1: 'Thor', team2: 'Hamar', score1: null, score2: null },
-      { time: '19:45', team1: 'Flux', team2: 'Ómon', score1: null, score2: null },
+      { time: '19:45', team1: 'Flux', team2: 'Omon', score1: null, score2: null },
       { time: '20:30', team1: 'Dusty', team2: '354 Esports', score1: null, score2: null },
     ],
   },
   {
     round: 3, date: '2026-09-16', matches: [
-      { time: '19:00', team1: 'Thor', team2: 'Ómon', score1: null, score2: null },
+      { time: '19:00', team1: 'Thor', team2: 'Omon', score1: null, score2: null },
       { time: '19:45', team1: 'Hamar', team2: '354 Esports', score1: null, score2: null },
       { time: '20:30', team1: 'Flux', team2: 'Dusty', score1: null, score2: null },
     ],
@@ -141,7 +141,7 @@ const SEASON_12_TEMPLATE: Round[] = [
   {
     round: 4, date: '2026-09-23', matches: [
       { time: '19:00', team1: 'Thor', team2: '354 Esports', score1: null, score2: null },
-      { time: '19:45', team1: 'Ómon', team2: 'Dusty', score1: null, score2: null },
+      { time: '19:45', team1: 'Omon', team2: 'Dusty', score1: null, score2: null },
       { time: '20:30', team1: 'Hamar', team2: 'Flux', score1: null, score2: null },
     ],
   },
@@ -149,26 +149,26 @@ const SEASON_12_TEMPLATE: Round[] = [
     round: 5, date: '2026-09-30', matches: [
       { time: '19:00', team1: 'Thor', team2: 'Dusty', score1: null, score2: null },
       { time: '19:45', team1: '354 Esports', team2: 'Flux', score1: null, score2: null },
-      { time: '20:30', team1: 'Ómon', team2: 'Hamar', score1: null, score2: null },
+      { time: '20:30', team1: 'Omon', team2: 'Hamar', score1: null, score2: null },
     ],
   },
   {
     round: 6, date: '2026-10-07', matches: [
       { time: '19:00', team1: 'Flux', team2: 'Thor', score1: null, score2: null },
       { time: '19:45', team1: 'Hamar', team2: 'Dusty', score1: null, score2: null },
-      { time: '20:30', team1: 'Ómon', team2: '354 Esports', score1: null, score2: null },
+      { time: '20:30', team1: 'Omon', team2: '354 Esports', score1: null, score2: null },
     ],
   },
   {
     round: 7, date: '2026-10-14', matches: [
       { time: '19:00', team1: 'Hamar', team2: 'Thor', score1: null, score2: null },
-      { time: '19:45', team1: 'Ómon', team2: 'Flux', score1: null, score2: null },
+      { time: '19:45', team1: 'Omon', team2: 'Flux', score1: null, score2: null },
       { time: '20:30', team1: '354 Esports', team2: 'Dusty', score1: null, score2: null },
     ],
   },
   {
     round: 8, date: '2026-10-21', matches: [
-      { time: '19:00', team1: 'Ómon', team2: 'Thor', score1: null, score2: null },
+      { time: '19:00', team1: 'Omon', team2: 'Thor', score1: null, score2: null },
       { time: '19:45', team1: 'Hamar', team2: '354 Esports', score1: null, score2: null },
       { time: '20:30', team1: 'Dusty', team2: 'Flux', score1: null, score2: null },
     ],
@@ -176,7 +176,7 @@ const SEASON_12_TEMPLATE: Round[] = [
   {
     round: 9, date: '2026-10-28', matches: [
       { time: '19:00', team1: '354 Esports', team2: 'Thor', score1: null, score2: null },
-      { time: '19:45', team1: 'Dusty', team2: 'Ómon', score1: null, score2: null },
+      { time: '19:45', team1: 'Dusty', team2: 'Omon', score1: null, score2: null },
       { time: '20:30', team1: 'Flux', team2: 'Hamar', score1: null, score2: null },
     ],
   },
@@ -184,7 +184,7 @@ const SEASON_12_TEMPLATE: Round[] = [
     round: 10, date: '2026-11-04', matches: [
       { time: '19:00', team1: 'Dusty', team2: 'Thor', score1: null, score2: null },
       { time: '19:45', team1: 'Flux', team2: '354 Esports', score1: null, score2: null },
-      { time: '20:30', team1: 'Hamar', team2: 'Ómon', score1: null, score2: null },
+      { time: '20:30', team1: 'Hamar', team2: 'Omon', score1: null, score2: null },
     ],
   },
 ];

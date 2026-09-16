@@ -315,7 +315,7 @@ export default async function RulesPage() {
               { id: 'dusty', name: 'Dusty' },
               { id: 'flux', name: 'Flux' },
               { id: 'hamar', name: 'Hamar' },
-              { id: 'omon', name: 'Ómon' },
+              { id: 'omon', name: 'Omon' },
               { id: 'thor', name: 'Thor' },
             ].map((team) => (
               <div

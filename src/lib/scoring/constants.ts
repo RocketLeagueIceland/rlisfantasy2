@@ -64,7 +64,7 @@ export const RL_TEAM_NAMES: Record<string, string> = {
   'dusty': 'Dusty',
   'flux': 'Flux',
   'hamar': 'Hamar',
-  'omon': 'Ómon',
+  'omon': 'Omon',
   'thor': 'Thor',
   'stjarnan': 'Stjarnan',
 } as const;
