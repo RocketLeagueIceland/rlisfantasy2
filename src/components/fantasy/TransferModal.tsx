@@ -32,6 +32,8 @@ interface TransferModalProps {
   teamPlayers: FantasyTeamPlayer[];
   allPlayers: RLPlayer[];
   budget: number;
+  /** Skip the sell step by opening straight to picking a replacement */
+  initialSellPlayer?: RLPlayer | null;
 }
 
 export function TransferModal({
@@ -41,9 +43,11 @@ export function TransferModal({
   teamPlayers,
   allPlayers,
   budget,
+  initialSellPlayer,
 }: TransferModalProps) {
-  const [step, setStep] = useState<'sell' | 'buy'>('sell');
-  const [sellPlayer, setSellPlayer] = useState<RLPlayer | null>(null);
+  // Parent remounts (via key) on each open, so these initialise from props
+  const [step, setStep] = useState<'sell' | 'buy'>(initialSellPlayer ? 'buy' : 'sell');
+  const [sellPlayer, setSellPlayer] = useState<RLPlayer | null>(initialSellPlayer ?? null);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState<RLTeam | 'all'>('all');
 

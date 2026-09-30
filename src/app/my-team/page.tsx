@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight, Save, Edit2, AlertTriangle } from 'lucide-react';
+import { ArrowLeftRight, Save, Edit2, AlertTriangle, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,8 @@ export default function MyTeamPage() {
     slotType: 'active',
   });
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferSellPlayer, setTransferSellPlayer] = useState<RLPlayer | null>(null);
+  const [transferModalKey, setTransferModalKey] = useState(0);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [weeklyScores, setWeeklyScores] = useState<any[]>([]);
@@ -166,7 +168,11 @@ export default function MyTeamPage() {
 
     if (existingPlayer && team && !preSeason) {
       // Season has started - roster changes go through transfers
-      toast.info('Use the Transfer button to change this player');
+      if (canTransfer && existingPlayer.rl_player) {
+        openTransfer(existingPlayer.rl_player);
+      } else {
+        toast.info('The transfer window is closed');
+      }
       return;
     }
 
@@ -534,7 +540,23 @@ export default function MyTeamPage() {
   const windowEffectivelyOpen = !!currentWeek?.transfer_window_open && !windowDeadlinePassed;
 
   // Check if can transfer
-  const canTransfer = team && windowEffectivelyOpen;
+  const canTransfer = !!team && windowEffectivelyOpen;
+
+  const openTransfer = (sellPlayer: RLPlayer | null = null) => {
+    setTransferSellPlayer(sellPlayer);
+    setTransferModalKey((k) => k + 1);
+    setTransferModalOpen(true);
+  };
+
+  const formatTimeLeft = (closesAt: string) => {
+    const ms = new Date(closesAt).getTime() - now;
+    const mins = Math.max(0, Math.floor(ms / 60_000));
+    const days = Math.floor(mins / 1440);
+    const hours = Math.floor((mins % 1440) / 60);
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins % 60}m`;
+    return `${mins}m`;
+  };
 
   if (loading) {
     return (
@@ -600,12 +622,6 @@ export default function MyTeamPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {canTransfer && (
-            <Button variant="outline" onClick={() => setTransferModalOpen(true)}>
-              <ArrowLeftRight className="mr-2 h-4 w-4" />
-              Transfer
-            </Button>
-          )}
           {team && rosterDirty && (
             <Button variant="ghost" onClick={() => fetchData()} disabled={saving}>
               Discard Changes
@@ -624,6 +640,35 @@ export default function MyTeamPage() {
           )}
         </div>
       </div>
+
+      {/* Transfer window banner */}
+      {team && !preSeason && (
+        windowEffectivelyOpen ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-green-500/40 bg-green-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <ArrowLeftRight className="h-5 w-5 shrink-0 text-green-500" />
+              <div>
+                <p className="font-semibold">Transfer window is open</p>
+                <p className="text-sm text-muted-foreground">
+                  1 transfer per week — click a player below or use the button
+                  {currentWeek?.transfer_window_closes_at && (
+                    <> · closes in <strong className="text-foreground">{formatTimeLeft(currentWeek.transfer_window_closes_at)}</strong></>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button size="lg" onClick={() => openTransfer()} className="shrink-0">
+              <ArrowLeftRight className="mr-2 h-4 w-4" />
+              Make a Transfer
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <Lock className="h-4 w-4 shrink-0" />
+            Transfer window is closed — transfers open again next week.
+          </div>
+        )
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         {/* Field visualization */}
@@ -665,14 +710,16 @@ export default function MyTeamPage() {
               </CardDescription>
             ) : (
               <CardDescription>
-                Drag players to swap positions
+                {canTransfer
+                  ? 'Click a player to transfer them, drag to swap positions'
+                  : 'Drag players to swap positions'}
               </CardDescription>
             )}
           </CardHeader>
           <CardContent>
             <FieldVisualization
               players={teamPlayers}
-              onSlotClick={!team || preSeason ? handleSlotClick : undefined}
+              onSlotClick={!team || preSeason || canTransfer ? handleSlotClick : undefined}
               onRemovePlayer={!team || preSeason ? handleRemovePlayer : undefined}
               onSwapPlayers={teamPlayers.length >= 2 ? handleSwapPlayers : undefined}
               onMovePlayer={teamPlayers.length >= 1 ? handleMovePlayer : undefined}
@@ -684,25 +731,6 @@ export default function MyTeamPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           <BudgetDisplay budget={budget} />
-
-          {/* Transfer window status */}
-          {team && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Transfer Window</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-sm font-medium ${windowEffectivelyOpen ? 'text-green-500' : 'text-red-500'}`}>
-                  {windowEffectivelyOpen ? 'Open' : 'Closed'}
-                </div>
-                {currentWeek?.transfer_window_closes_at && windowEffectivelyOpen && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Closes: {new Date(currentWeek.transfer_window_closes_at).toLocaleString()}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Team progress */}
           {!team && (
@@ -815,8 +843,10 @@ export default function MyTeamPage() {
       {/* Transfer modal */}
       {team && (
         <TransferModal
+          key={transferModalKey}
           open={transferModalOpen}
           onClose={() => setTransferModalOpen(false)}
+          initialSellPlayer={transferSellPlayer}
           onConfirm={handleTransfer}
           teamPlayers={teamPlayers}
           allPlayers={allPlayers}
