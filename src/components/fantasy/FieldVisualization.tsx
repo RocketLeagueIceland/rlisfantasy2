@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import {
   DndContext,
@@ -57,6 +57,13 @@ export function FieldVisualization({
 }: FieldVisualizationProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  // Releasing a drag also fires a click on the card; ignore that click
+  const lastDragEndRef = useRef(0);
+
+  const handleSlotClick = (slotType: 'active' | 'substitute', role?: Role, subOrder?: number) => {
+    if (Date.now() - lastDragEndRef.current < 250) return;
+    onSlotClick?.(slotType, role, subOrder);
+  };
 
   // Configure sensors for mouse and touch
   const pointerSensor = useSensor(PointerSensor, {
@@ -134,6 +141,7 @@ export function FieldVisualization({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
+    lastDragEndRef.current = Date.now();
     setActiveId(null);
     setOverId(null);
 
@@ -172,6 +180,7 @@ export function FieldVisualization({
   };
 
   const handleDragCancel = () => {
+    lastDragEndRef.current = Date.now();
     setActiveId(null);
     setOverId(null);
   };
@@ -218,7 +227,7 @@ export function FieldVisualization({
                 <PlayerSlot
                   role="striker"
                   player={player}
-                  onClick={() => onSlotClick?.('active', 'striker')}
+                  onClick={onSlotClick && (() => handleSlotClick('active', 'striker'))}
                   onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'striker') : undefined}
                   disabled={disabled}
                   slotId={slotId}
@@ -242,7 +251,7 @@ export function FieldVisualization({
                 <PlayerSlot
                   role="midfield"
                   player={player}
-                  onClick={() => onSlotClick?.('active', 'midfield')}
+                  onClick={onSlotClick && (() => handleSlotClick('active', 'midfield'))}
                   onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'midfield') : undefined}
                   disabled={disabled}
                   slotId={slotId}
@@ -266,7 +275,7 @@ export function FieldVisualization({
                 <PlayerSlot
                   role="goalkeeper"
                   player={player}
-                  onClick={() => onSlotClick?.('active', 'goalkeeper')}
+                  onClick={onSlotClick && (() => handleSlotClick('active', 'goalkeeper'))}
                   onRemove={onRemovePlayer ? () => onRemovePlayer('active', 'goalkeeper') : undefined}
                   disabled={disabled}
                   slotId={slotId}
@@ -297,7 +306,7 @@ export function FieldVisualization({
                 <PlayerSlot
                   subOrder={order}
                   player={player}
-                  onClick={() => onSlotClick?.('substitute', undefined, order)}
+                  onClick={onSlotClick && (() => handleSlotClick('substitute', undefined, order))}
                   onRemove={onRemovePlayer ? () => onRemovePlayer('substitute', undefined, order) : undefined}
                   disabled={disabled}
                   slotId={slotId}

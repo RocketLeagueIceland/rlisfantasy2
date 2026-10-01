@@ -94,7 +94,7 @@ export function PlayerSlot({
           player={player}
           role={role}
           subOrder={subOrder}
-          onClick={!disabled && !isDragEnabled ? onClick : undefined}
+          onClick={!disabled ? onClick : undefined}
         />
         {onRemove && !disabled && (
           <button
