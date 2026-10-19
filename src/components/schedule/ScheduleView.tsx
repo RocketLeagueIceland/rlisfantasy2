@@ -16,10 +16,14 @@ function TeamLogo({ team }: { team: string }) {
   );
 }
 
+function isDecided(match: Match) {
+  return !!match.forfeit || (match.score1 !== null && match.score2 !== null);
+}
+
 function MatchRow({ match }: { match: Match }) {
-  const played = match.score1 !== null && match.score2 !== null;
-  const team1Won = played && match.score1! > match.score2!;
-  const team2Won = played && match.score2! > match.score1!;
+  const played = isDecided(match);
+  const team1Won = match.forfeit ? match.forfeit === 'team2' : played && match.score1! > match.score2!;
+  const team2Won = match.forfeit ? match.forfeit === 'team1' : played && match.score2! > match.score1!;
 
   return (
     <div className="flex items-center gap-3 py-3 border-b last:border-0">
@@ -31,7 +35,11 @@ function MatchRow({ match }: { match: Match }) {
 
       {/* Score */}
       <div className="w-20 text-center">
-        {played ? (
+        {match.forfeit ? (
+          <span className="font-mono font-bold text-lg" title="Forfeit">
+            {team1Won ? 'W' : 'FF'} - {team2Won ? 'W' : 'FF'}
+          </span>
+        ) : played ? (
           <span className="font-mono font-bold text-lg">
             {match.score1} - {match.score2}
           </span>
@@ -59,7 +67,7 @@ export function ScheduleView({ schedule }: { schedule: Round[] }) {
     <div className="space-y-4">
       {schedule.map((round, index) => {
         const roundDate = new Date(round.date + 'T14:00:00Z');
-        const played = round.matches.every(m => m.score1 !== null);
+        const played = round.matches.every(isDecided);
         const isCurrent = index === currentRoundIndex;
         const formattedDate = roundDate.toLocaleDateString('en-GB', {
           weekday: 'long',

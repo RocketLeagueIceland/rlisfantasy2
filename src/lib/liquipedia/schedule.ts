@@ -26,6 +26,8 @@ export interface Match {
   team2: string;
   score1: number | null;
   score2: number | null;
+  /** Set when the match was decided by forfeit: the team that forfeited. */
+  forfeit?: 'team1' | 'team2';
 }
 
 export interface Round {
@@ -217,37 +219,45 @@ function lpNameToApp(lpName: string): string | undefined {
   return TEAM_NAME_MAP[normalizeLpName(lpName)];
 }
 
-interface ParsedMatch {
+type MatchResult = Pick<Match, 'score1' | 'score2' | 'forfeit'>;
+
+interface ParsedMatch extends MatchResult {
   team1: string;
   team2: string;
-  score1: number;
-  score2: number;
+}
+
+/** Turn a pair of Liquipedia score fields into a result. Unplayed → null scores. */
+function toResult(raw1: string, raw2: string): MatchResult {
+  const s1 = raw1.trim().toUpperCase();
+  const s2 = raw2.trim().toUpperCase();
+  if (s1 === 'FF' || s2 === 'FF') {
+    return { score1: null, score2: null, forfeit: s1 === 'FF' ? 'team1' : 'team2' };
+  }
+  if (/^\d+$/.test(s1) && /^\d+$/.test(s2)) {
+    return { score1: parseInt(s1, 10), score2: parseInt(s2, 10) };
+  }
+  return { score1: null, score2: null };
 }
 
 /**
- * Parse wikitext to extract match results.
+ * Parse wikitext to extract every match, played or not, in page order.
  * Matches the pattern:  |opponent1={{TeamOpponent|NAME|score=N}}
  * followed by:          |opponent2={{TeamOpponent|NAME|score=N}}
- * Only includes matches where both scores are present (non-empty digits).
+ * Scores can be digits, empty (unplayed) or W/FF (forfeit).
  */
 function parseScores(wikitext: string): ParsedMatch[] {
   const results: ParsedMatch[] = [];
 
   // Match each {{Match ... }} block that contains two TeamOpponent templates
   const matchBlockRe =
-    /\|opponent1=\{\{TeamOpponent\|([^|}]+)\|score=(\d+)\}\}\s*\|opponent2=\{\{TeamOpponent\|([^|}]+)\|score=(\d+)\}\}/g;
+    /\|opponent1=\{\{TeamOpponent\|([^|}]+)\|score=([^|}]*)\}\}\s*\|opponent2=\{\{TeamOpponent\|([^|}]+)\|score=([^|}]*)\}\}/g;
 
   let m: RegExpExecArray | null;
   while ((m = matchBlockRe.exec(wikitext)) !== null) {
     const t1 = lpNameToApp(m[1]);
     const t2 = lpNameToApp(m[3]);
     if (t1 && t2) {
-      results.push({
-        team1: t1,
-        team2: t2,
-        score1: parseInt(m[2], 10),
-        score2: parseInt(m[4], 10),
-      });
+      results.push({ team1: t1, team2: t2, ...toResult(m[2], m[4]) });
     }
   }
 
@@ -288,11 +298,12 @@ export async function getScheduleWithScores(seasonNumber: number): Promise<Round
   // Build a lookup: "team1 vs team2" → results in page order. The same pairing
   // can appear in two rounds (e.g. Hamar vs 354 Esports in rounds 3 and 8), so
   // each fixture consumes the next result rather than all sharing the first.
-  const scoreMap = new Map<string, { score1: number; score2: number }[]>();
-  for (const pm of parsed) {
-    const key = `${pm.team1} vs ${pm.team2}`;
+  // Unplayed matches are queued too, so results stay aligned with their round.
+  const scoreMap = new Map<string, MatchResult[]>();
+  for (const { team1, team2, ...result } of parsed) {
+    const key = `${team1} vs ${team2}`;
     const queue = scoreMap.get(key) ?? [];
-    queue.push({ score1: pm.score1, score2: pm.score2 });
+    queue.push(result);
     scoreMap.set(key, queue);
   }
 
@@ -303,7 +314,7 @@ export async function getScheduleWithScores(seasonNumber: number): Promise<Round
       const key = `${match.team1} vs ${match.team2}`;
       const found = scoreMap.get(key)?.shift();
       if (found) {
-        return { ...match, score1: found.score1, score2: found.score2 };
+        return { ...match, ...found };
       }
       return match;
     }),
