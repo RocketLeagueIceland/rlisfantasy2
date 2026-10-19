@@ -285,18 +285,23 @@ export async function getScheduleWithScores(seasonNumber: number): Promise<Round
 
   const parsed = parseScores(wikitext);
 
-  // Build a lookup: "team1 vs team2" → scores
-  const scoreMap = new Map<string, { score1: number; score2: number }>();
+  // Build a lookup: "team1 vs team2" → results in page order. The same pairing
+  // can appear in two rounds (e.g. Hamar vs 354 Esports in rounds 3 and 8), so
+  // each fixture consumes the next result rather than all sharing the first.
+  const scoreMap = new Map<string, { score1: number; score2: number }[]>();
   for (const pm of parsed) {
-    scoreMap.set(`${pm.team1} vs ${pm.team2}`, { score1: pm.score1, score2: pm.score2 });
+    const key = `${pm.team1} vs ${pm.team2}`;
+    const queue = scoreMap.get(key) ?? [];
+    queue.push({ score1: pm.score1, score2: pm.score2 });
+    scoreMap.set(key, queue);
   }
 
-  // Merge into template
+  // Merge into template (rounds are chronological, matching page order)
   return config.template.map((round) => ({
     ...round,
     matches: round.matches.map((match) => {
       const key = `${match.team1} vs ${match.team2}`;
-      const found = scoreMap.get(key);
+      const found = scoreMap.get(key)?.shift();
       if (found) {
         return { ...match, score1: found.score1, score2: found.score2 };
       }
