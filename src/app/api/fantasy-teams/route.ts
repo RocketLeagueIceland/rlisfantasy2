@@ -49,7 +49,20 @@ export async function GET() {
       return NextResponse.json({ team: teamData, teamPlayers: [], error: playersError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ team: teamData, teamPlayers: teamPlayersData || [] });
+    // This week's transfer, if one was made - only 1 is allowed per week
+    let weekTransfer = null;
+    const currentWeek = await getCurrentWeek(supabase, season.id);
+    if (currentWeek) {
+      const { data: transferData } = await supabase
+        .from('transfers')
+        .select('*, sold_player:rl_players!sold_player_id(*), bought_player:rl_players!bought_player_id(*)')
+        .eq('fantasy_team_id', teamData.id)
+        .eq('week_id', currentWeek.id)
+        .maybeSingle();
+      weekTransfer = transferData;
+    }
+
+    return NextResponse.json({ team: teamData, teamPlayers: teamPlayersData || [], weekTransfer });
   } catch (e) {
     console.error('Unexpected error:', e);
     return NextResponse.json({ team: null, teamPlayers: [], error: 'Unexpected error' }, { status: 500 });

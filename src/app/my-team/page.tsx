@@ -23,7 +23,7 @@ import {
   TransferModal,
 } from '@/components/fantasy';
 import { canSwapPlayers, canMoveToEmptySlot } from '@/lib/fantasy/constraints';
-import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Season, Week, PointsBreakdown } from '@/types';
+import type { RLPlayer, Role, FantasyTeam, FantasyTeamPlayer, Season, Week, PointsBreakdown, Transfer } from '@/types';
 import { INITIAL_BUDGET } from '@/lib/scoring/constants';
 
 interface PickerState {
@@ -42,6 +42,7 @@ export default function MyTeamPage() {
   const [teamPlayers, setTeamPlayers] = useState<FantasyTeamPlayer[]>([]);
   const [allPlayers, setAllPlayers] = useState<RLPlayer[]>([]);
   const [currentWeek, setCurrentWeek] = useState<Week | null>(null);
+  const [weekTransfer, setWeekTransfer] = useState<Transfer | null>(null);
   const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
   const [preSeason, setPreSeason] = useState(false);
   const [teamName, setTeamName] = useState('');
@@ -148,6 +149,7 @@ export default function MyTeamPage() {
         setTeam(teamData.team);
         setTeamName(teamData.team.name);
         setTeamPlayers(teamData.teamPlayers || []);
+        setWeekTransfer(teamData.weekTransfer || null);
       }
 
       setLoading(false);
@@ -170,6 +172,8 @@ export default function MyTeamPage() {
       // Season has started - roster changes go through transfers
       if (canTransfer && existingPlayer.rl_player) {
         openTransfer(existingPlayer.rl_player);
+      } else if (weekTransfer && windowEffectivelyOpen) {
+        toast.info('You have already made your transfer this week');
       } else {
         toast.info('The transfer window is closed');
       }
@@ -540,7 +544,7 @@ export default function MyTeamPage() {
   const windowEffectivelyOpen = !!currentWeek?.transfer_window_open && !windowDeadlinePassed;
 
   // Check if can transfer
-  const canTransfer = !!team && windowEffectivelyOpen;
+  const canTransfer = !!team && windowEffectivelyOpen && !weekTransfer;
 
   const openTransfer = (sellPlayer: RLPlayer | null = null) => {
     setTransferSellPlayer(sellPlayer);
@@ -643,7 +647,7 @@ export default function MyTeamPage() {
 
       {/* Transfer window banner */}
       {team && !preSeason && (
-        windowEffectivelyOpen ? (
+        canTransfer ? (
           <div className="flex flex-col gap-3 rounded-lg border border-green-500/40 bg-green-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <ArrowLeftRight className="h-5 w-5 shrink-0 text-green-500" />
@@ -661,6 +665,20 @@ export default function MyTeamPage() {
               <ArrowLeftRight className="mr-2 h-4 w-4" />
               Make a Transfer
             </Button>
+          </div>
+        ) : weekTransfer ? (
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <ArrowLeftRight className="h-4 w-4 shrink-0" />
+            <span>
+              Transfer used this week
+              {weekTransfer.sold_player && weekTransfer.bought_player && (
+                <>
+                  : <strong className="text-foreground">{weekTransfer.sold_player.name}</strong> out,{' '}
+                  <strong className="text-foreground">{weekTransfer.bought_player.name}</strong> in
+                </>
+              )}
+              {' '}— your next transfer opens next week.
+            </span>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">

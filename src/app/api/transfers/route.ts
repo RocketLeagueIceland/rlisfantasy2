@@ -57,6 +57,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Team not found or not owned by user' }, { status: 403 });
     }
 
+    // Only 1 transfer per week (also enforced by a DB trigger)
+    const { data: existingTransfer } = await supabase
+      .from('transfers')
+      .select('id')
+      .eq('fantasy_team_id', teamId)
+      .eq('week_id', currentWeek.id)
+      .maybeSingle();
+
+    if (existingTransfer) {
+      return NextResponse.json({ error: 'You have already made your transfer this week' }, { status: 400 });
+    }
+
     // Fetch current team players for constraint validation
     const { data: currentTeamPlayers, error: teamPlayersError } = await supabase
       .from('fantasy_team_players')
