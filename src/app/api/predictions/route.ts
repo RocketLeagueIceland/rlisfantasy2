@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentSeason } from '@/lib/seasons';
 import { NextResponse } from 'next/server';
 import { predictionSchema } from '@/lib/predictions/schema';
-import { PREDICTIONS_SEASON } from '@/lib/predictions/constants';
+import { getPlayoffBracket } from '@/lib/predictions/constants';
 import { isDeadlinePassed } from '@/lib/predictions/helpers';
 
 export const dynamic = 'force-dynamic';
@@ -16,19 +16,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (isDeadlinePassed()) {
-      return NextResponse.json({ error: 'Predictions are closed' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const parsed = predictionSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Invalid submission', issues: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
     const season = await getCurrentSeason(supabase);
     if (!season) {
       return NextResponse.json({ error: 'No active season' }, { status: 400 });
@@ -36,8 +23,22 @@ export async function POST(request: Request) {
 
     // The bracket config is per-season; reject submissions until the current
     // season's bracket has been configured
-    if (season.number !== PREDICTIONS_SEASON) {
+    const bracket = getPlayoffBracket(season.number);
+    if (!bracket) {
       return NextResponse.json({ error: 'Predictions are not open yet' }, { status: 403 });
+    }
+
+    if (isDeadlinePassed(bracket)) {
+      return NextResponse.json({ error: 'Predictions are closed' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const parsed = predictionSchema(bracket).safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid submission', issues: parsed.error.flatten() },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabase

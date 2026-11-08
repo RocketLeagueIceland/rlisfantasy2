@@ -1,22 +1,26 @@
-import type { Sf1Team, Sf2Team } from '@/types/predictions';
-import { PREDICTIONS_DEADLINE } from './constants';
+import type { RLTeam } from '@/types/database';
+import type { PlayoffBracket } from '@/types/predictions';
 
-export function getSf1Loser(winner: Sf1Team | undefined): Sf1Team | undefined {
+/** The other team in a semifinal pairing, i.e. the loser if `winner` won. */
+export function getOpponent(
+  pair: readonly [RLTeam, RLTeam],
+  winner: RLTeam | undefined
+): RLTeam | undefined {
   if (!winner) return undefined;
-  return winner === 'thor' ? 'stjarnan' : 'thor';
+  if (winner === pair[0]) return pair[1];
+  if (winner === pair[1]) return pair[0];
+  return undefined;
 }
 
-export function getSf2Loser(winner: Sf2Team | undefined): Sf2Team | undefined {
-  if (!winner) return undefined;
-  return winner === '354esports' ? 'dusty' : '354esports';
+export function isDeadlinePassed(
+  bracket: PlayoffBracket,
+  now: Date = new Date()
+): boolean {
+  return now.getTime() > new Date(bracket.deadline).getTime();
 }
 
-export function isDeadlinePassed(now: Date = new Date()): boolean {
-  return now.getTime() > new Date(PREDICTIONS_DEADLINE).getTime();
-}
-
-export function formatDeadline(): string {
-  const d = new Date(PREDICTIONS_DEADLINE);
+export function formatDeadline(bracket: PlayoffBracket): string {
+  const d = new Date(bracket.deadline);
   return d.toLocaleString('en-GB', {
     dateStyle: 'full',
     timeStyle: 'short',

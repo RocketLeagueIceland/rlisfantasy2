@@ -8,13 +8,14 @@ import { formatDeadline, isDeadlinePassed } from '@/lib/predictions/helpers';
 import type {
   PlayoffPrediction,
   PlayoffPredictionWithUser,
+  PlayoffBracket,
 } from '@/types/predictions';
 
 interface Props {
   ownPrediction: PlayoffPrediction | null;
   otherPredictions: PlayoffPredictionWithUser[];
   currentUsername: string;
-  bracketAvailable: boolean;
+  bracket: PlayoffBracket | null;
   seasonName: string | null;
 }
 
@@ -22,12 +23,10 @@ export function PredictionsPageClient({
   ownPrediction,
   otherPredictions,
   currentUsername,
-  bracketAvailable,
+  bracket,
   seasonName,
 }: Props) {
-  const deadlinePassed = isDeadlinePassed();
-
-  if (!bracketAvailable) {
+  if (!bracket) {
     return (
       <div className="space-y-8">
         <div>
@@ -53,12 +52,14 @@ export function PredictionsPageClient({
     );
   }
 
+  const deadlinePassed = isDeadlinePassed(bracket);
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Playoff Predictions</h1>
         <p className="text-muted-foreground">
-          Predict the RLIS playoff bracket. One shot — picks are final.
+          Predict the {seasonName ?? 'RLIS'} playoff bracket. One shot — picks are final.
         </p>
       </div>
 
@@ -77,6 +78,7 @@ export function PredictionsPageClient({
           <CardContent>
             <PredictionBracket
               mode="view"
+              bracket={bracket}
               prediction={ownPrediction}
               highlight
             />
@@ -89,20 +91,20 @@ export function PredictionsPageClient({
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              The deadline was {formatDeadline()}. Predictions can no longer be
+              The deadline was {formatDeadline(bracket)}. Predictions can no longer be
               submitted.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <PredictionForm />
+        <PredictionForm bracket={bracket} />
       )}
 
       <div>
         <h2 className="mb-4 text-xl font-semibold">
           Other predictions ({otherPredictions.length})
         </h2>
-        <PredictionsList predictions={otherPredictions} />
+        <PredictionsList bracket={bracket} predictions={otherPredictions} />
       </div>
     </div>
   );

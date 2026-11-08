@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getSeasonByNumber } from '@/lib/seasons';
 import { PredictionsList } from '@/components/predictions/PredictionsList';
 import { Card, CardContent } from '@/components/ui/card';
+import { getPlayoffBracket } from '@/lib/predictions/constants';
 import type { PlayoffPrediction, PlayoffPredictionWithUser } from '@/types/predictions';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,8 @@ export default async function SeasonPredictionsPage({ params }: Props) {
     .eq('season_id', season.id)
     .order('created_at', { ascending: false });
 
+  const bracket = getPlayoffBracket(season.number);
+
   const predictions: PlayoffPredictionWithUser[] = ((rawPredictions ?? []) as PredictionRow[])
     .filter((p): p is PredictionRow & { user: NonNullable<PredictionRow['user']> } => p.user !== null)
     .map((p) => {
@@ -59,7 +62,7 @@ export default async function SeasonPredictionsPage({ params }: Props) {
         </p>
       </div>
 
-      {predictions.length === 0 ? (
+      {predictions.length === 0 || !bracket ? (
         <Card>
           <CardContent className="py-12">
             <p className="text-center text-muted-foreground">
@@ -68,7 +71,7 @@ export default async function SeasonPredictionsPage({ params }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <PredictionsList predictions={predictions} />
+        <PredictionsList bracket={bracket} predictions={predictions} />
       )}
     </div>
   );
