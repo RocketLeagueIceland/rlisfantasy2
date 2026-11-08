@@ -10,11 +10,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PredictionBracket } from './PredictionBracket';
-import type { PlayoffPrediction } from '@/types/predictions';
+import type { PlayoffBracket, PlayoffPrediction } from '@/types/predictions';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  bracket: PlayoffBracket;
   preview: PlayoffPrediction;
   submitting: boolean;
   onConfirm: () => void;
@@ -23,6 +24,7 @@ interface Props {
 export function PredictionConfirmDialog({
   open,
   onOpenChange,
+  bracket,
   preview,
   submitting,
   onConfirm,
@@ -39,7 +41,7 @@ export function PredictionConfirmDialog({
         </DialogHeader>
 
         <div className="py-2">
-          <PredictionBracket mode="view" prediction={preview} />
+          <PredictionBracket mode="view" bracket={bracket} prediction={preview} />
         </div>
 
         <DialogFooter>

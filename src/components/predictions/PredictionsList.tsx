@@ -6,11 +6,13 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { isSafeUrl } from '@/lib/utils';
 import { PredictionBracket } from './PredictionBracket';
-import type { PlayoffPredictionWithUser } from '@/types/predictions';
+import type { PlayoffBracket, PlayoffPredictionWithUser } from '@/types/predictions';
 
 export function PredictionsList({
+  bracket,
   predictions,
 }: {
+  bracket: PlayoffBracket;
   predictions: PlayoffPredictionWithUser[];
 }) {
   if (predictions.length === 0) {
@@ -47,7 +49,7 @@ export function PredictionsList({
             </div>
           </CardHeader>
           <CardContent>
-            <PredictionBracket mode="view" prediction={p} />
+            <PredictionBracket mode="view" bracket={bracket} prediction={p} />
           </CardContent>
         </Card>
       ))}

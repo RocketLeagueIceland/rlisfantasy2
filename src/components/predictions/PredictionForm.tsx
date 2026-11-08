@@ -16,10 +16,11 @@ import {
   type BracketFormValues,
 } from '@/lib/predictions/bracket-form';
 import { formatDeadline, isDeadlinePassed } from '@/lib/predictions/helpers';
+import type { PlayoffBracket } from '@/types/predictions';
 
 type FormValues = Partial<BracketFormValues>;
 
-export function PredictionForm() {
+export function PredictionForm({ bracket }: { bracket: PlayoffBracket }) {
   const router = useRouter();
   const methods = useForm<FormValues>({
     resolver: zodResolver(bracketFormSchema) as never,
@@ -33,14 +34,14 @@ export function PredictionForm() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const deadlinePassed = isDeadlinePassed();
+  const deadlinePassed = isDeadlinePassed(bracket);
   const parseResult = bracketFormSchema.safeParse(values);
   const allFilled = parseResult.success;
 
   async function submit(data: BracketFormValues) {
     setSubmitting(true);
     try {
-      const submission = toPredictionSubmission(data);
+      const submission = toPredictionSubmission(bracket, data);
       const res = await fetch('/api/predictions', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -67,7 +68,7 @@ export function PredictionForm() {
           <p className="text-sm text-muted-foreground">
             For each series, type the number of games each team wins. The team
             that reaches 4 wins the series and advances. Predictions close{' '}
-            {formatDeadline()}.
+            {formatDeadline(bracket)}.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -83,7 +84,7 @@ export function PredictionForm() {
             })}
             className="space-y-4"
           >
-            <PredictionBracket mode="form" />
+            <PredictionBracket mode="form" bracket={bracket} />
             <div className="flex items-center justify-end gap-2">
               <Button
                 type="submit"
@@ -100,7 +101,8 @@ export function PredictionForm() {
         <PredictionConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
-          preview={previewPrediction(parseResult.data)}
+          bracket={bracket}
+          preview={previewPrediction(bracket, parseResult.data)}
           submitting={submitting}
           onConfirm={() => submit(parseResult.data)}
         />

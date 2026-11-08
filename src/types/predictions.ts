@@ -6,26 +6,30 @@ export type SeriesScore = '4-0' | '4-1' | '4-2' | '4-3';
 
 export const SERIES_SCORES = ['4-0', '4-1', '4-2', '4-3'] as const;
 
-export const SEMIFINAL_TEAMS = {
-  sf1: ['thor', 'stjarnan'] as const,
-  sf2: ['354esports', 'dusty'] as const,
-} satisfies Record<'sf1' | 'sf2', readonly RLTeam[]>;
-
-export type Sf1Team = (typeof SEMIFINAL_TEAMS)['sf1'][number];
-export type Sf2Team = (typeof SEMIFINAL_TEAMS)['sf2'][number];
-export type PlayoffTeam = Sf1Team | Sf2Team;
+/**
+ * One season's playoff bracket: the two semifinal pairings (decided by league
+ * play) and the submission deadline. The Grand Final is SF1 winner vs SF2
+ * winner; the Third Place Match is SF1 loser vs SF2 loser.
+ */
+export interface PlayoffBracket {
+  season: number;
+  sf1: readonly [RLTeam, RLTeam];
+  sf2: readonly [RLTeam, RLTeam];
+  /** ISO timestamp; submissions close at this instant. */
+  deadline: string;
+}
 
 export interface PlayoffPrediction {
   id: string;
   user_id: string;
   season_id: string;
-  sf1_winner: Sf1Team;
+  sf1_winner: RLTeam;
   sf1_score: SeriesScore;
-  sf2_winner: Sf2Team;
+  sf2_winner: RLTeam;
   sf2_score: SeriesScore;
-  gf_winner: PlayoffTeam;
+  gf_winner: RLTeam;
   gf_score: SeriesScore;
-  third_winner: PlayoffTeam;
+  third_winner: RLTeam;
   third_score: SeriesScore;
   created_at: string;
 }

@@ -1,12 +1,32 @@
-import type { SeriesId, Sf1Team, Sf2Team } from '@/types/predictions';
+import type { PlayoffBracket, SeriesId } from '@/types/predictions';
 
-// The season this bracket configuration (teams + deadline below) belongs to.
-// Until the Season 12 playoff bracket is known and configured here, the
-// predictions page shows "not open yet" for any other current season.
-export const PREDICTIONS_SEASON = 11;
+// Per-season playoff brackets. When a season's semifinal pairings are known
+// (end of league play), add an entry here AND a matching row in the
+// playoff_brackets table (see supabase/migrations/016_*), and predictions
+// open for that season. Iceland is UTC year-round.
+export const PLAYOFF_BRACKETS: Record<number, PlayoffBracket> = {
+  11: {
+    season: 11,
+    sf1: ['thor', 'stjarnan'],
+    sf2: ['354esports', 'dusty'],
+    deadline: '2026-04-26T16:00:00+00:00',
+  },
+  // Liquipedia: Icelandic_Esports_League/Season_12 — 1st vs 4th, 2nd vs 3rd,
+  // all series Bo7, played 2026-11-14.
+  12: {
+    season: 12,
+    sf1: ['354esports', 'hamar'],
+    sf2: ['thor', 'omon'],
+    deadline: '2026-11-14T16:00:00+00:00',
+  },
+};
 
-// Hard deadline for prediction submissions. Iceland is UTC year-round.
-export const PREDICTIONS_DEADLINE = '2026-04-26T16:00:00+00:00';
+export function getPlayoffBracket(
+  seasonNumber: number | null | undefined
+): PlayoffBracket | null {
+  if (seasonNumber == null) return null;
+  return PLAYOFF_BRACKETS[seasonNumber] ?? null;
+}
 
 export interface SeriesConfig {
   id: SeriesId;
@@ -20,6 +40,3 @@ export const SERIES: Record<SeriesId, SeriesConfig> = {
   gf:    { id: 'gf',    label: 'Grand Final',       shortLabel: 'Final' },
   third: { id: 'third', label: 'Third Place Match', shortLabel: '3rd' },
 };
-
-export const SF1_TEAMS: readonly [Sf1Team, Sf1Team] = ['thor', 'stjarnan'];
-export const SF2_TEAMS: readonly [Sf2Team, Sf2Team] = ['354esports', 'dusty'];

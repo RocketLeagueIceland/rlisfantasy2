@@ -8,24 +8,38 @@ import {
   deriveSf2Winner,
   type BracketFormValues,
 } from '@/lib/predictions/bracket-form';
-import { getSf1Loser, getSf2Loser } from '@/lib/predictions/helpers';
+import { getOpponent } from '@/lib/predictions/helpers';
+import type { RLTeam } from '@/types/database';
 import type {
+  PlayoffBracket,
   PlayoffPrediction,
-  PlayoffTeam,
   SeriesScore,
 } from '@/types/predictions';
 
+type PlayoffTeam = RLTeam;
+
 type BracketProps =
-  | { mode: 'view'; prediction: PlayoffPrediction; highlight?: boolean }
-  | { mode: 'form' };
+  | {
+      mode: 'view';
+      bracket: PlayoffBracket;
+      prediction: PlayoffPrediction;
+      highlight?: boolean;
+    }
+  | { mode: 'form'; bracket: PlayoffBracket };
 
 const GAMES_TO_WIN = 4;
 
 export function PredictionBracket(props: BracketProps) {
   if (props.mode === 'view') {
-    return <ViewBracket prediction={props.prediction} highlight={props.highlight} />;
+    return (
+      <ViewBracket
+        bracket={props.bracket}
+        prediction={props.prediction}
+        highlight={props.highlight}
+      />
+    );
   }
-  return <FormBracket />;
+  return <FormBracket bracket={props.bracket} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,14 +47,16 @@ export function PredictionBracket(props: BracketProps) {
 // ---------------------------------------------------------------------------
 
 function ViewBracket({
+  bracket,
   prediction,
   highlight,
 }: {
+  bracket: PlayoffBracket;
   prediction: PlayoffPrediction;
   highlight?: boolean;
 }) {
-  const sf1Loser = getSf1Loser(prediction.sf1_winner);
-  const sf2Loser = getSf2Loser(prediction.sf2_winner);
+  const sf1Loser = getOpponent(bracket.sf1, prediction.sf1_winner);
+  const sf2Loser = getOpponent(bracket.sf2, prediction.sf2_winner);
 
   return (
     <div
@@ -55,14 +71,14 @@ function ViewBracket({
           <Banner>Semifinals</Banner>
           <SfPairWithConnectors>
             <ViewSeriesBox
-              teamA="thor"
-              teamB="stjarnan"
+              teamA={bracket.sf1[0]}
+              teamB={bracket.sf1[1]}
               winner={prediction.sf1_winner}
               score={prediction.sf1_score}
             />
             <ViewSeriesBox
-              teamA="354esports"
-              teamB="dusty"
+              teamA={bracket.sf2[0]}
+              teamB={bracket.sf2[1]}
               winner={prediction.sf2_winner}
               score={prediction.sf2_score}
             />
@@ -102,13 +118,13 @@ function ViewBracket({
 // Form mode
 // ---------------------------------------------------------------------------
 
-function FormBracket() {
+function FormBracket({ bracket }: { bracket: PlayoffBracket }) {
   const { watch } = useFormContext<BracketFormValues>();
   const values = watch();
-  const sf1Winner = deriveSf1Winner(values);
-  const sf2Winner = deriveSf2Winner(values);
-  const sf1Loser = getSf1Loser(sf1Winner);
-  const sf2Loser = getSf2Loser(sf2Winner);
+  const sf1Winner = deriveSf1Winner(bracket, values);
+  const sf2Winner = deriveSf2Winner(bracket, values);
+  const sf1Loser = getOpponent(bracket.sf1, sf1Winner);
+  const sf2Loser = getOpponent(bracket.sf2, sf2Winner);
 
   return (
     <div className="space-y-6">
@@ -118,14 +134,14 @@ function FormBracket() {
           <Banner>Semifinals</Banner>
           <SfPairWithConnectors>
             <FormSeriesBox
-              teamA="thor"
-              teamB="stjarnan"
+              teamA={bracket.sf1[0]}
+              teamB={bracket.sf1[1]}
               fieldA="sf1_a"
               fieldB="sf1_b"
             />
             <FormSeriesBox
-              teamA="354esports"
-              teamB="dusty"
+              teamA={bracket.sf2[0]}
+              teamB={bracket.sf2[1]}
               fieldA="sf2_a"
               fieldB="sf2_b"
             />
